@@ -1,4 +1,4 @@
-//package io.github.declangh.sharedtexteditor;
+package io.github.declangh.sharedtexteditor;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -10,7 +10,7 @@ import java.awt.event.ActionListener;
 import java.io.*;
 import java.util.HashMap;
 
-public class github extends JFrame {
+public class EditorClient extends JFrame {
     private JTextArea textArea;
     private JFileChooser fileChooser;
     private HashMap<Integer, String> textMap = new HashMap<Integer, String>();
@@ -135,12 +135,6 @@ public class github extends JFrame {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        // we'll keep this local for now. We can replace with a GitHub server or cs server later
-        new EditorClient().setVisible(true);
-        //new EditorClient("localhost:8080");
-    }
-
    //This method is for updating the hashmap for which characters map to which position. 
     //This should be called after every update in the text editor.
     private void addOperation(int offset, int length, String newCharacter){
@@ -219,5 +213,11 @@ public class github extends JFrame {
             textMap.clear();
             textMap.putAll(tempMap);
         }
+    }
+
+    public static void main(String[] args) throws Exception {
+        // we'll keep this local for now. We can replace with a GitHub server or cs server later
+        new EditorClient().setVisible(true);
+        //new EditorClient("localhost:8080");
     }
 }
