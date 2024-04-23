@@ -11,12 +11,13 @@ import java.io.*;
 import java.util.HashMap;
 
 public class EditorClient extends JFrame {
+
+
     private JTextArea textArea;
     private JFileChooser fileChooser;
-    private HashMap<Integer, String> textMap = new HashMap<Integer, String>();
-    // TODO: Add Nathan's Text Editor to the constructor below
-    //public EditorClient(String serverURI){
-    public EditorClient() {
+    private HashMap<Integer, String> textMap = new HashMap<>();
+
+    public EditorClient(/*String serverURI*/) {
         setTitle("Simple Text Editor");
         setSize(600, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -31,26 +32,14 @@ public class EditorClient extends JFrame {
         JMenuItem saveItem = new JMenuItem("Save");
         JMenuItem exitItem = new JMenuItem("Exit");
 
-        //Open a file on your computer  
-        openItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                openFile();
-            }
-        });
+        // Open a file on your computer
+        openItem.addActionListener(e -> openFile());
 
-        //Save the file to your computer
-        saveItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                saveFile();
-            }
-        });
+        // Save the file to your computer
+        saveItem.addActionListener(e -> saveFile());
 
-        //Exit the application
-        exitItem.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                System.exit(0);
-            }
-        });
+        // Exit the application
+        exitItem.addActionListener(e -> System.exit(0));
 
         //Make the text area
         textArea.getDocument().addDocumentListener(new DocumentListener() {
@@ -135,15 +124,16 @@ public class EditorClient extends JFrame {
         }
     }
 
-   //This method is for updating the hashmap for which characters map to which position. 
-    //This should be called after every update in the text editor.
+    // This method is for updating the hashmap for which characters map to which position.
+    // This should be called after every update in the text editor.
     private void addOperation(int offset, int length, String newCharacter){
         String value;
         int key;
+
         //First check to see if there is a key for that offset
         if(textMap.containsKey(offset)){
             //Make a new map 
-            HashMap<Integer, String> tempMap = new HashMap<Integer, String>();
+            HashMap<Integer, String> tempMap = new HashMap<>();
             
             //Make a new map and map each value up to the offset to the same position
             for(int i = 0; i < textMap.size(); i++){
