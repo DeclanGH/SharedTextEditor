@@ -1,54 +1,17 @@
 package io.github.declangh.sharedtexteditor;
 
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.stereotype.Controller;
 
-import java.io.IOException;
-import java.util.concurrent.CopyOnWriteArrayList;
+@Controller
+public class WebSocketTextHandler {
 
-public class WebSocketTextHandler extends TextWebSocketHandler{
+    @MessageMapping("/edit")
+    @SendTo("/topic/changes")
+    public TextOperation broadcastChanges(TextOperation editOperation) {
 
-    // kj
-    private WebSocketSession leaderSession = null;
-    private final CopyOnWriteArrayList<WebSocketSession> allowedSessions
-            = new CopyOnWriteArrayList<>();
-
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        if (leaderSession == null) {
-            leaderSession = session;
-            session.sendMessage(new TextMessage("You are the leader"));
-        } else {
-            session.sendMessage(new TextMessage("Waiting for leader's approval"));
-        }
-    }
-
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
-
-        // Broadcast
-        for (WebSocketSession webSocketSession : allowedSessions) {
-            if (webSocketSession.isOpen() && !session.getId().equals(webSocketSession.getId())) {
-                webSocketSession.sendMessage(message);
-            }
-        }
-    }
-
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        if (session.equals(leaderSession)) {
-            // End the session for everyone
-            for (WebSocketSession s : allowedSessions) {
-                if (s.isOpen()) {
-                    s.close();
-                }
-            }
-            leaderSession = null;
-            allowedSessions.clear();
-        } else {
-            allowedSessions.remove(session);
-        }
+        // Using TextOperation class for now. Might update
+        return editOperation;
     }
 }
