@@ -5,13 +5,10 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.*;
 import java.util.HashMap;
 
 public class EditorClient extends JFrame {
-
 
     private JTextArea textArea;
     private JFileChooser fileChooser;
@@ -186,34 +183,34 @@ public class EditorClient extends JFrame {
         }
     }
 
-    //This is called when a delete occurs. 
+    // This is called when a delete operation occurs.
     private void deleteOperation(int offset, int length){
         String value;
         int key; 
 
-        //If the offset = size of the map
+        // If the offset = size of the map
         if(offset == textMap.size()){
-            //This means the the offset is the last character in the map, so no need to update others
+            // This means the offset is the last character in the map, so no need to update others
             textMap.remove(offset);
         }
-        //Else there are characters that need to be moved
+        // Else there are characters that need to be moved
         else{
-            //Make a new map 
+            // Make a new map
             HashMap<Integer, String> tempMap = new HashMap<Integer, String>();
 
-            //Make a new map and map each value up to the offset to the same position
+            // Make a new map and map each value up to the offset to the same position
             for(int i = 0; i < textMap.size(); i++){
     
-                //If i is less than the offset then you can just put it in the new map
+                // If it is less than the offset then you can just put it in the new map
                 if(i < offset){
                     value = textMap.get(i);
                     tempMap.put(i, value);
                 }
-                //if i = the offset, then continue. We dont want that value
+                // if i = the offset, then continue. We dont want that value
                 else if(i == offset){
                     continue;
                 }
-                //Else, map to the new position (oldPosition - length)
+                // Else, map to the new position (oldPosition - length)
                 else{
                     key = i - length;
                     value = tempMap.get(i);
