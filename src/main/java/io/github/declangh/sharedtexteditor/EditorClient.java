@@ -17,6 +17,10 @@ public class EditorClient extends JFrame {
     private JFileChooser fileChooser;
     private HashMap<Integer, String> textMap = new HashMap<>();
 
+    Packets packets;
+
+    int numOps = 0;
+
     public EditorClient(/*String serverURI*/) {
         setTitle("Simple Text Editor");
         setSize(600, 400);
@@ -51,6 +55,12 @@ public class EditorClient extends JFrame {
                     insertedText = event.getDocument().getText(event.getOffset(), event.getLength());
                     //CALL UPDATE MAP HERE
                     addOperation(event.getOffset(), event.getLength(), insertedText);
+
+                    //After doing the operation locally, get the packet to broadcast it out
+                    byte[] insertPacket = packets.insertPacket((short)numOps, (short)event.getOffset(), (short)event.getLength(), insertedText);
+
+                    //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                    
                 } catch (Exception e) {
                     // TODO: handle exception
                     insertedText = "";
@@ -68,6 +78,11 @@ public class EditorClient extends JFrame {
                 //CALL UPDATE MAP HERE
                 deleteOperation(offset, length);
 
+                //After doing the operation locally, get the packet to broadcast it out
+                byte[] deletePacket = packets.deletePacket((short)numOps, (short)event.getOffset(), (short)event.getLength());
+
+                //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+
                 System.out.println("Offset " + offset + " Length " + length);
             }
 
@@ -78,6 +93,12 @@ public class EditorClient extends JFrame {
                 try {
                     updatedText = event.getDocument().getText(event.getOffset(), event.getLength());
                     //CALL UPDATE MAP HERE
+
+                    //After doing the operation locally, get the packet to broadcast it out
+                    //TODO - ADD FUNCTION FOR UPDATING TEXT IN THE MAP
+
+                    //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                    
                 } catch (Exception e) {
                     // TODO: handle exception
                     updatedText = "";
