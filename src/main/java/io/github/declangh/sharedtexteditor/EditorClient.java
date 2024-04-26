@@ -12,7 +12,7 @@ public class EditorClient extends JFrame {
 
     private JTextArea textArea;
     private JFileChooser fileChooser;
-    private HashMap<Integer, String> textMap = new HashMap<>();
+    private HashMap<Integer, Character> textMap = new HashMap<>();
 
     Packets packets;
 
@@ -42,7 +42,7 @@ public class EditorClient extends JFrame {
         // Exit the application
         exitItem.addActionListener(e -> System.exit(0));
 
-        //Make the text area
+        // Make the text area
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event){
@@ -50,13 +50,13 @@ public class EditorClient extends JFrame {
 
                 try {
                     insertedText = event.getDocument().getText(event.getOffset(), event.getLength());
-                    //CALL UPDATE MAP HERE
+                    // CALL UPDATE MAP HERE
                     addOperation(event.getOffset(), event.getLength(), insertedText);
 
-                    //After doing the operation locally, get the packet to broadcast it out
+                    // After doing the operation locally, get the packet to broadcast it out
                     byte[] insertPacket = packets.insertPacket(numOps, (short)event.getOffset(), (short)event.getLength(), insertedText);
 
-                    //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                    // TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
                     
                 } catch (Exception e) {
                     // TODO: handle exception
@@ -77,7 +77,7 @@ public class EditorClient extends JFrame {
 
                 //After doing the operation locally, get the packet to broadcast it out
                 if (packets!= null){
-                    byte[] deletePacket = packets.deletePacket((short)numOps, (short)event.getOffset(), (short)event.getLength());
+                    byte[] deletePacket = packets.deletePacket(numOps, (short)event.getOffset(), (short)event.getLength());
                 }
 
                 //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
@@ -149,24 +149,25 @@ public class EditorClient extends JFrame {
     private void addOperation(int offset, int length, String newCharacter){
         char value;
         int key;
-        //First check to see if there is a key for that offset
+        // First check to see if there is a key for that offset
         if(textMap.containsKey(offset)){
-            //Make a new map 
+            // Make a new map
             HashMap<Integer, Character> tempMap = new HashMap<>();
             
-            //Make a new map and map each value up to the offset to the same position
+            // Make a new map and map each value up to the offset to the same position
             for(int i = 0; i < textMap.size(); i++){
                 
-                //If i is less than the offset (the new chars position) then you can just put in the new map
+                // If it is less than the offset (the new chars position) then you can just put in the new map
                 if(i < offset){
                     value = textMap.get(i);
                     tempMap.put(i, value);
                 }
-                //if i = the offset, put the new character at that position and the old character at the position + length
+
+                // if i = the offset, put the new character at that position and the old character at the position + length
                 else if(i == offset){
-                    //Check if the length is greater than 1 
+                    // Check if the length is greater than 1
                     if(length > 1){
-                        //If it is, we need a FOR loop to add each character in the string to the map and move the old characters to the new place 
+                        // If it is, we need a FOR loop to add each character in the string to the map and move the old characters to the new place
                         for(int j = 0; j < length; j++){
                             tempMap.put(i + j, newCharacter.charAt(j));
                             value = textMap.get(i + j);
@@ -180,61 +181,60 @@ public class EditorClient extends JFrame {
                         tempMap.put(i+1, value);
                     }
                 }
-                //Else, map to the new position (oldPosition + length)
+                // Else, map to the new position (oldPosition + length)
                 else{
                     key = i + length;
                     value = textMap.get(i);
                     tempMap.put(key, value);
                 }
             }
-            //Clear the old map and copy the new map
+            // Clear the old map and copy the new map
             textMap.clear();
             textMap.putAll(tempMap);
             System.out.println(tempMap.entrySet() + " temp map");
         }
         else{
-            //Check to see the length of the new text
+            // Check to see the length of the new text
             if(length > 1){
                 for(int i = 0; i < length; i++){
                     textMap.put(offset + i, newCharacter.charAt(i));
                 }
             }
             else{
-                //If there isnt, put the new character at that position
+                // If there isnt, put the new character at that position
                 textMap.put(offset, newCharacter.charAt(0));
             }
-
         }
     }
 
-    //This is called when a delete occurs. 
+    // This is called when a delete operation occurs.
     private void deleteOperation(int offset, int length){
         char value;
         int key; 
 
-        //If the offset = size of the map
+        // If the offset = size of the map
         if(offset == textMap.size()){
-            //This means the the offset is the last character in the map, so no need to update others
+            // This means the offset is the last character in the map, so no need to update others
             textMap.remove(offset);
         }
-        //Else there are characters that need to be moved
+        // Else there are characters that need to be moved
         else{
-            //Make a new map 
+            // Make a new map
             HashMap<Integer, Character> tempMap = new HashMap<Integer, Character>();
 
-            //Make a new map and map each value up to the offset to the same position
+            // Make a new map and map each value up to the offset to the same position
             for(int i = 0; i < textMap.size(); i++){
     
-                //If i is less than the offset then you can just put it in the new map
+                // If it is less than the offset then you can just put it in the new map
                 if(i < offset){
                     value = textMap.get(i);
                     tempMap.put(i, value);
                 }
-                //if i = the offset, then continue. We dont want that value
+                // if i = the offset, then continue. We dont want that value
                 else if(i == offset || i < offset + length){
                     continue;
                 }
-                //Else, map to the new position (oldPosition - length)
+                // Else, map to the new position (oldPosition - length)
                 else{
                     key = i - length;
                     value = textMap.get(i);
@@ -250,6 +250,6 @@ public class EditorClient extends JFrame {
     public static void main(String[] args) throws Exception {
         // we'll keep this local for now. We can replace with a GitHub server or cs server later
         new EditorClient().setVisible(true);
-        //new EditorClient("localhost:8080");
+        // new EditorClient("localhost:8080");
     }
 }
