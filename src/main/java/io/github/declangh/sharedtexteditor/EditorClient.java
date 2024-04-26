@@ -54,7 +54,7 @@ public class EditorClient extends JFrame {
                     addOperation(event.getOffset(), event.getLength(), insertedText);
 
                     //After doing the operation locally, get the packet to broadcast it out
-                    byte[] insertPacket = packets.insertPacket((short)numOps, (short)event.getOffset(), (short)event.getLength(), insertedText);
+                    byte[] insertPacket = packets.insertPacket(numOps, (short)event.getOffset(), (short)event.getLength(), insertedText);
 
                     //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
                     
@@ -76,7 +76,9 @@ public class EditorClient extends JFrame {
                 deleteOperation(offset, length);
 
                 //After doing the operation locally, get the packet to broadcast it out
-                byte[] deletePacket = packets.deletePacket((short)numOps, (short)event.getOffset(), (short)event.getLength());
+                if (packets!= null){
+                    byte[] deletePacket = packets.deletePacket((short)numOps, (short)event.getOffset(), (short)event.getLength());
+                }
 
                 //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
 
