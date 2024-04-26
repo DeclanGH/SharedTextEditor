@@ -8,7 +8,7 @@ import org.springframework.stereotype.Controller;
 public class WebSocketTextHandler {
 
     @MessageMapping("/edit")
-    @SendTo("/topic/changes")
+    @SendTo("/SharedTextEditor/changes")
     public TextOperation broadcastChanges(TextOperation editOperation) {
 
         // Using TextOperation class for now. Might update
