@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 
 public class Packets {
 
-    public byte[] insertPacket(short numOps, short offset, short length, String characters){
+    public byte[] insertPacket(int numOps, short offset, short length, String characters){
         //The header telling the receipient to insert
         String INSERT = "INSERT";
 
@@ -16,7 +16,7 @@ public class Packets {
         packetBuffer.put(INSERT.getBytes());
 
         //Then the number of operations
-        packetBuffer.putShort(numOps);
+        packetBuffer.putInt(numOps);
 
         //Then the offset
         packetBuffer.putShort(offset);
@@ -33,7 +33,7 @@ public class Packets {
         return packet;
     }
 
-    public byte[] deletePacket(short numOps, short offset, short length){
+    public byte[] deletePacket(int numOps, short offset, short length){
         //The header telling the receipient to insert
         String DELETE = "DELETE";
 
@@ -42,7 +42,7 @@ public class Packets {
 
         //Insert the operations into the buffer
         //First the number of operations
-        packetBuffer.putShort(numOps);
+        packetBuffer.putInt(numOps);
 
         //Then the offset
         packetBuffer.putShort(offset);
