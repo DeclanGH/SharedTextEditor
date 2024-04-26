@@ -147,13 +147,12 @@ public class EditorClient extends JFrame {
     // This method is for updating the hashmap for which characters map to which position.
     // This should be called after every update in the text editor.
     private void addOperation(int offset, int length, String newCharacter){
-        String value;
+        char value;
         int key;
-
         //First check to see if there is a key for that offset
         if(textMap.containsKey(offset)){
             //Make a new map 
-            HashMap<Integer, String> tempMap = new HashMap<>();
+            HashMap<Integer, Character> tempMap = new HashMap<>();
             
             //Make a new map and map each value up to the offset to the same position
             for(int i = 0; i < textMap.size(); i++){
@@ -163,14 +162,28 @@ public class EditorClient extends JFrame {
                     value = textMap.get(i);
                     tempMap.put(i, value);
                 }
-                //if i = the offset, put the new character at that position 
+                //if i = the offset, put the new character at that position and the old character at the position + length
                 else if(i == offset){
-                    tempMap.put(i, newCharacter);
+                    //Check if the length is greater than 1 
+                    if(length > 1){
+                        //If it is, we need a FOR loop to add each character in the string to the map and move the old characters to the new place 
+                        for(int j = 0; j < length; j++){
+                            tempMap.put(i + j, newCharacter.charAt(j));
+                            value = textMap.get(i + j);
+                            tempMap.put(i + length, value);
+                        }
+                    }
+                    //Else just replace the one character
+                    else{
+                        tempMap.put(i, newCharacter.charAt(0));
+                        value = textMap.get(i);
+                        tempMap.put(i+1, value);
+                    }
                 }
                 //Else, map to the new position (oldPosition + length)
                 else{
                     key = i + length;
-                    value = tempMap.get(i);
+                    value = textMap.get(i);
                     tempMap.put(key, value);
                 }
             }
@@ -180,42 +193,51 @@ public class EditorClient extends JFrame {
             System.out.println(tempMap.entrySet() + " temp map");
         }
         else{
-            //If there isnt, put the new character at that position
-            textMap.put(offset, newCharacter);
+            //Check to see the length of the new text
+            if(length > 1){
+                for(int i = 0; i < length; i++){
+                    textMap.put(offset + i, newCharacter.charAt(i));
+                }
+            }
+            else{
+                //If there isnt, put the new character at that position
+                textMap.put(offset, newCharacter.charAt(0));
+            }
+
         }
     }
 
-    // This is called when a delete operation occurs.
+    //This is called when a delete occurs. 
     private void deleteOperation(int offset, int length){
-        String value;
+        char value;
         int key; 
 
-        // If the offset = size of the map
+        //If the offset = size of the map
         if(offset == textMap.size()){
-            // This means the offset is the last character in the map, so no need to update others
+            //This means the the offset is the last character in the map, so no need to update others
             textMap.remove(offset);
         }
-        // Else there are characters that need to be moved
+        //Else there are characters that need to be moved
         else{
-            // Make a new map
-            HashMap<Integer, String> tempMap = new HashMap<Integer, String>();
+            //Make a new map 
+            HashMap<Integer, Character> tempMap = new HashMap<Integer, Character>();
 
-            // Make a new map and map each value up to the offset to the same position
+            //Make a new map and map each value up to the offset to the same position
             for(int i = 0; i < textMap.size(); i++){
     
-                // If it is less than the offset then you can just put it in the new map
+                //If i is less than the offset then you can just put it in the new map
                 if(i < offset){
                     value = textMap.get(i);
                     tempMap.put(i, value);
                 }
-                // if i = the offset, then continue. We dont want that value
-                else if(i == offset){
+                //if i = the offset, then continue. We dont want that value
+                else if(i == offset || i < offset + length){
                     continue;
                 }
-                // Else, map to the new position (oldPosition - length)
+                //Else, map to the new position (oldPosition - length)
                 else{
                     key = i - length;
-                    value = tempMap.get(i);
+                    value = textMap.get(i);
                     tempMap.put(key, value);
                 }
             }
