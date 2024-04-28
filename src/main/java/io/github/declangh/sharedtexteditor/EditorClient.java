@@ -15,7 +15,8 @@ public class EditorClient extends JFrame {
     private HashMap<Integer, Character> textMap = new HashMap<>();
 
     Packets packets;
-
+    User user = new User();
+    
     int numOps = 0;
 
     public EditorClient(/*String serverURI*/) {
@@ -57,6 +58,7 @@ public class EditorClient extends JFrame {
                     byte[] insertPacket = packets.insertPacket(numOps, (short)event.getOffset(), (short)event.getLength(), insertedText);
 
                     // TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                    user.broadcast(insertPacket);
                     
                 } catch (Exception e) {
                     // TODO: handle exception
@@ -78,9 +80,10 @@ public class EditorClient extends JFrame {
                 //After doing the operation locally, get the packet to broadcast it out
                 if (packets!= null){
                     byte[] deletePacket = packets.deletePacket(numOps, (short)event.getOffset(), (short)event.getLength());
+                    user.broadcast(deletePacket);
                 }
 
-                //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNE
 
                 System.out.println("Offset " + offset + " Length " + length);
             }
@@ -94,7 +97,6 @@ public class EditorClient extends JFrame {
                     //CALL UPDATE MAP HERE
 
                     //After doing the operation locally, get the packet to broadcast it out
-                    //TODO - ADD FUNCTION FOR UPDATING TEXT IN THE MAP
 
                     //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
                     
@@ -247,9 +249,32 @@ public class EditorClient extends JFrame {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        // we'll keep this local for now. We can replace with a GitHub server or cs server later
-        new EditorClient().setVisible(true);
-        // new EditorClient("localhost:8080");
+    //This method will be for inserting characters into the text editor, it is passed in the offset and length of the inserted text
+    public void insertIntoEditor(int[] paramsToInsert){
+        //paramsToInsert[0] = offset
+        int offset = paramsToInsert[0];
+
+        //paramsToInsert[1] = length
+        int length = paramsToInsert[1];
+
+        //Loop through Map from offset to length, inserting each character in the text area
+        for(int i = offset; i < length; i++){
+            textArea.insert(Character.toString(textMap.get(i)), i);
+        }
+    }
+
+    //This method will be for deleting characters from the text editor, it is passed in the offset and length of the deleted text
+    public void deleteFromEditor(int[] paramsToDelete){
+        //paramsToInsert[0] = offset
+        int offset = paramsToDelete[0];
+
+        //paramsToInsert[1] = length
+        int length = paramsToDelete[1];
+
+        //Loop through Map from offset to length, deleting each character in the text area 
+        for(int i = offset; i < length; i++){
+            textArea.remove(i);
+        }
+
     }
 }
