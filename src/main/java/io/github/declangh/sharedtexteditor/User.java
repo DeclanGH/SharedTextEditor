@@ -11,10 +11,11 @@ public class User {
     int userID;
     Producer<String, byte[]> producer;
     Consumer<String, byte[]> consumer;
+
     public User(){
         //Instantiate the properties for the producer
         Properties props = new Properties();
-        props.put("bootstrap.servers", "pi.cs.oswego.edu/26920");
+        props.put("bootstrap.servers", "pi.cs.oswego.edu:26920");
         props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
@@ -22,11 +23,14 @@ public class User {
         producer = new KafkaProducer<>(props);
 
         Properties props2 = new Properties();
-        props.put("bootstrap.servers", "pi.cs.oswego.edu/26920");
-        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props2.put("bootstrap.servers", "pi.cs.oswego.edu:26920");
+        props2.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props2.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
+        //Create this user's consumer
+        consumer = new KafkaConsumer<>(props2);
     }
+
     public static void main(String[] args) throws Exception {
         String update = "UPDATE Diawdnauidnauidnawidnwaid";
         System.out.println(update.getBytes().length);
