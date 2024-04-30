@@ -48,17 +48,16 @@ public class EditorClient extends JFrame {
 
                 try {
                     insertedText = event.getDocument().getText(event.getOffset(), event.getLength());
-                    // CALL UPDATE MAP HERE
+                    // update map
                     addOperation(event.getOffset(), event.getLength(), insertedText);
 
                     // After doing the operation locally, get the packet to broadcast it out
                     byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
 
-                    // TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                    // Broadcast the packet to the other users in the channel
                     user.broadcast(insertPacket);
                     
                 } catch (Exception e) {
-                    // TODO: handle exception
                     insertedText = "";
                 }
                 System.out.println(textMap.entrySet());
@@ -71,13 +70,13 @@ public class EditorClient extends JFrame {
                 int offset = event.getOffset();
                 int length = event.getLength();
 
-                // CALL UPDATE MAP HERE
+                // update map
                 deleteOperation(offset, length);
 
                 // After doing the operation locally, get the packet to broadcast it out
                 byte[] deletePacket = Packets.createDeletePacket(event.getOffset(), event.getLength());
 
-                // TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                // Broadcast the packet to the other users in the channel
                 user.broadcast(deletePacket);
 
                 System.out.println("Offset " + offset + " Length " + length);
@@ -96,7 +95,6 @@ public class EditorClient extends JFrame {
                     //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
                     
                 } catch (Exception e) {
-                    // TODO: handle exception
                     updatedText = "";
                 }
                 System.out.println(updatedText);                
@@ -171,7 +169,7 @@ public class EditorClient extends JFrame {
                             tempMap.put(i + length, value);
                         }
                     }
-                    //Else just replace the one character
+                    // Else just replace the one character
                     else{
                         tempMap.put(i, newCharacter.charAt(0));
                         value = textMap.get(i);
@@ -244,9 +242,9 @@ public class EditorClient extends JFrame {
         }
     }
 
-    //This method will be for inserting characters into the text editor, it is passed in the offset and length of the inserted text
+    // This method will be for inserting characters into the text editor, it is passed in the offset and length of the inserted text
     public void insertIntoEditor(int[] paramsToInsert){
-        //paramsToInsert[0] = offset
+        // paramsToInsert[0] = offset
         int offset = paramsToInsert[0];
 
         //paramsToInsert[1] = length
@@ -260,13 +258,13 @@ public class EditorClient extends JFrame {
 
     //This method will be for deleting characters from the text editor, it is passed in the offset and length of the deleted text
     public void deleteFromEditor(int[] paramsToDelete){
-        //paramsToInsert[0] = offset
+        // paramsToInsert[0] = offset
         int offset = paramsToDelete[0];
 
-        //paramsToInsert[1] = length
+        // paramsToInsert[1] = length
         int length = paramsToDelete[1];
 
-        //Loop through Map from offset to length, deleting each character in the text area 
+        // Loop through Map from offset to length, deleting each character in the text area
         for(int i = offset; i < length; i++){
             textArea.remove(i);
         }
