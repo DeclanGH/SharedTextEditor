@@ -52,15 +52,17 @@ public class EditorClient extends JFrame {
 
                     // After doing the operation locally, get the packet to broadcast it out
                     byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
-
+                    //System.out.println(insertPacket);
                     // Broadcast the packet to the other users in the channel
+                    //System.out.println("Here");
+                    //System.out.println(UserService.getInstance());
                     UserService.getInstance().broadcast(insertPacket);
                     
                 } catch (Exception e) {
                     insertedText = "";
                 }
-                System.out.println(textMap.entrySet());
-                System.out.println(insertedText);
+                //System.out.println(textMap.entrySet());
+                //System.out.println(insertedText);
             }
 
             @Override
@@ -268,11 +270,13 @@ public class EditorClient extends JFrame {
 
     //This method will be for deleting characters from the text editor, it is passed in the offset and length of the deleted text
     public static void deleteFromEditor(byte[] packet) {
+        //TODO call to update hashmap
+
         // paramsToInsert[0] = offset
-        int offset = paramsToDelete[0];
+        int offset = Packets.parseOffset(packet);
 
         // paramsToInsert[1] = length
-        int length = paramsToDelete[1];
+        int length = Packets.parseLength(packet);
 
         // Loop through Map from offset to length, deleting each character in the text area
         for(int i = offset; i < length; i++){

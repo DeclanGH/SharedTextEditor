@@ -13,20 +13,21 @@ public class Packets {
     private static final int OPERATION_SIZE = Integer.BYTES;
 
     public static byte[] createInsertPacket(int offset, int length, String characters) {
+        System.out.println("Creating insert packet");
         int charactersLength = characters.getBytes().length;
 
         ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + INT_PARAMS_SIZE + charactersLength);
 
         // put the ordinal value of the Operation
         packetBuffer.putInt(Operation.INSERT.ordinal());
-
         packetBuffer.putInt(offset);
         packetBuffer.putInt(length);
 
         for (char c : characters.toCharArray())
+            //TODO change from putChar to get the bytes of each char and put it in the array
             packetBuffer.putChar(c);
-
         // Return the byte array
+        System.out.println(packetBuffer.toString());
         return packetBuffer.array();
     }
 
