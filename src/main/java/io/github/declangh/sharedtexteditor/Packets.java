@@ -66,9 +66,10 @@ public class Packets {
         return packetBuffer.getInt();
     }
 
-    public static int parseString(byte[] packet) {
+    public static String parseString(byte[] packet) {
         Operation operation = parseOperation(packet);
 
+        // we won't make this mistake, but incase
         if (operation != Operation.INSERT)
             throw new IllegalArgumentException("Attempt to parse characters from a non-insert packet");
 
@@ -77,6 +78,12 @@ public class Packets {
         packetBuffer.getInt(); // Skip offset
         packetBuffer.getInt(); // Skip length
 
-        return packetBuffer.getInt();
+        // iterate the remaining bytes (expected to be chars) and append them to form a string
+        StringBuilder builder = new StringBuilder();
+        while (packetBuffer.hasRemaining()) {
+            builder.append(packetBuffer.getChar());
+        }
+
+        return builder.toString();
     }
 }
