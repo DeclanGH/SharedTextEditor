@@ -14,10 +14,7 @@ public class EditorClient extends JFrame {
     private JFileChooser fileChooser;
     private HashMap<Integer, Character> textMap = new HashMap<>();
 
-    Packets packets;
     User user = new User();
-    
-    int numOps = 0;
 
     public EditorClient(/*String serverURI*/) {
         setTitle("Simple Text Editor");
@@ -55,7 +52,7 @@ public class EditorClient extends JFrame {
                     addOperation(event.getOffset(), event.getLength(), insertedText);
 
                     // After doing the operation locally, get the packet to broadcast it out
-                    byte[] insertPacket = packets.insertPacket(numOps, (short)event.getOffset(), (short)event.getLength(), insertedText);
+                    byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
 
                     // TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
                     user.broadcast(insertPacket);
@@ -70,20 +67,18 @@ public class EditorClient extends JFrame {
 
             @Override
             public void removeUpdate(DocumentEvent event){
-                //String removedText;
+                // String removedText;
                 int offset = event.getOffset();
                 int length = event.getLength();
 
-                //CALL UPDATE MAP HERE
+                // CALL UPDATE MAP HERE
                 deleteOperation(offset, length);
 
-                //After doing the operation locally, get the packet to broadcast it out
-                if (packets!= null){
-                    byte[] deletePacket = packets.deletePacket(numOps, (short)event.getOffset(), (short)event.getLength());
-                    user.broadcast(deletePacket);
-                }
+                // After doing the operation locally, get the packet to broadcast it out
+                byte[] deletePacket = Packets.createDeletePacket(event.getOffset(), event.getLength());
 
-                //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNE
+                // TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
+                user.broadcast(deletePacket);
 
                 System.out.println("Offset " + offset + " Length " + length);
             }
