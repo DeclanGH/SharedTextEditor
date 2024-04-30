@@ -4,55 +4,79 @@ import java.nio.ByteBuffer;
 
 public class Packets {
 
-    public byte[] insertPacket(int numOps, short offset, short length, String characters){
-        //The header telling the receipient to insert
-        String INSERT = "INSERT";
-
-        //Byte buffer that will hold packet allocate (INSERT.bytes.length + characters.bytes.length + short.bytes*3) 
-        ByteBuffer packetBuffer = ByteBuffer.allocate(INSERT.getBytes().length + (Short.BYTES*3) + characters.getBytes().length);
-
-        //Insert the operations into the buffer
-        //First the operation
-        packetBuffer.put(INSERT.getBytes());
-
-        //Then the number of operations
-        packetBuffer.putInt(numOps);
-
-        //Then the offset
-        packetBuffer.putShort(offset);
-
-        //Then the length
-        packetBuffer.putShort(length);
-
-        //Then the characters (so you know how many bytes to grab)
-        packetBuffer.put(characters.getBytes());
-
-        //Now turn it into an array of bytes
-        byte[] packet = packetBuffer.array();
-
-        return packet;
+    public enum Operation {
+        INSERT,
+        DELETE
     }
 
-    public byte[] deletePacket(int numOps, short offset, short length){
-        //The header telling the receipient to insert
-        String DELETE = "DELETE";
+    private static final int INT_PARAMS_SIZE = Integer.BYTES * 2;
+    private static final int OPERATION_SIZE = Integer.BYTES;
 
-        //Byte buffer that will hold packet allocate (INSERT.bytes.length + characters.bytes.length + short.bytes*3) 
-        ByteBuffer packetBuffer = ByteBuffer.allocate(DELETE.getBytes().length + (Short.BYTES*3));
+    public static byte[] createInsertPacket(int offset, int length, String characters) {
+        int charactersLength = characters.getBytes().length;
 
-        //Insert the operations into the buffer
-        //First the number of operations
-        packetBuffer.putInt(numOps);
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + INT_PARAMS_SIZE + charactersLength);
 
-        //Then the offset
-        packetBuffer.putShort(offset);
+        // put the ordinal value of the Operation
+        packetBuffer.putInt(Operation.INSERT.ordinal());
 
-        //Then the length
-        packetBuffer.putShort(length);
+        packetBuffer.putInt(offset);
+        packetBuffer.putInt(length);
 
-        //Now turn it into an array of bytes
-        byte[] packet = packetBuffer.array();
+        for (char c : characters.toCharArray())
+            packetBuffer.putChar(c);
 
-        return packet;
+        // Return the byte array
+        return packetBuffer.array();
+    }
+
+    public static byte[] createDeletePacket(int offset, int length) {
+
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + INT_PARAMS_SIZE);
+
+        // put the ordinal value of the Operation, offset and length
+        packetBuffer.putInt(Operation.DELETE.ordinal());
+        packetBuffer.putInt(offset);
+        packetBuffer.putInt(length);
+
+        return packetBuffer.array();
+    }
+
+    public static Operation parseOperation(byte[] packet) {
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        int operationOrdinal = packetBuffer.getInt();
+
+        return Operation.values()[operationOrdinal];
+    }
+
+    public static int parseOffset(byte[] packet) {
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        packetBuffer.getInt();
+
+        return packetBuffer.getInt();
+    }
+
+    public static int parseLength(byte[] packet) {
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+
+        // skip until we get to position of length
+        packetBuffer.getInt();
+        packetBuffer.getInt();
+
+        return packetBuffer.getInt();
+    }
+
+    public static int parseString(byte[] packet) {
+        Operation operation = parseOperation(packet);
+
+        if (operation != Operation.INSERT)
+            throw new IllegalArgumentException("Attempt to parse characters from a non-insert packet");
+
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        packetBuffer.getInt(); // Skip operation
+        packetBuffer.getInt(); // Skip offset
+        packetBuffer.getInt(); // Skip length
+
+        return packetBuffer.getInt();
     }
 }
