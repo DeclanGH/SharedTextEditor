@@ -243,7 +243,7 @@ public class EditorClient extends JFrame {
     }
 
     // This method will be for inserting characters into the text editor, it is passed in the offset and length of the inserted text
-    public void insertIntoEditor(int[] paramsToInsert){
+    public void insertIntoEditor(int[] paramsToInsert) {
         // paramsToInsert[0] = offset
         int offset = paramsToInsert[0];
 
@@ -257,7 +257,7 @@ public class EditorClient extends JFrame {
     }
 
     //This method will be for deleting characters from the text editor, it is passed in the offset and length of the deleted text
-    public void deleteFromEditor(int[] paramsToDelete){
+    public void deleteFromEditor(int[] paramsToDelete) {
         // paramsToInsert[0] = offset
         int offset = paramsToDelete[0];
 
