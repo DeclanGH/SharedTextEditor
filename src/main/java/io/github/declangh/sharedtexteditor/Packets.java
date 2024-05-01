@@ -14,7 +14,7 @@ public class Packets {
 
     public static byte[] createInsertPacket(int offset, int length, String characters) {
         System.out.println("Creating insert packet");
-        int charactersLength = characters.getBytes().length;
+        int charactersLength = characters.length() * 2;
 
         ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + INT_PARAMS_SIZE + charactersLength);
 
@@ -24,10 +24,9 @@ public class Packets {
         packetBuffer.putInt(length);
 
         for (char c : characters.toCharArray())
-            //TODO change from putChar to get the bytes of each char and put it in the array
             packetBuffer.putChar(c);
+
         // Return the byte array
-        System.out.println(packetBuffer.toString());
         return packetBuffer.array();
     }
 
