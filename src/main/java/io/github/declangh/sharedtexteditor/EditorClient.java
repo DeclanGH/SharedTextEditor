@@ -7,6 +7,7 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
+import java.util.Arrays;
 import java.util.HashMap;
 
 public class EditorClient extends JFrame {
@@ -52,10 +53,8 @@ public class EditorClient extends JFrame {
 
                     // After doing the operation locally, get the packet to broadcast it out
                     byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
-                    //System.out.println(insertPacket);
-                    // Broadcast the packet to the other users in the channel
-                    //System.out.println("Here");
-                    //System.out.println(UserService.getInstance());
+                    System.out.println(Arrays.toString(insertPacket));
+
                     UserService.getInstance().broadcast(insertPacket);
                     
                 } catch (Exception e) {
@@ -84,22 +83,7 @@ public class EditorClient extends JFrame {
             }
 
             @Override
-            public void changedUpdate(DocumentEvent event){
-                String updatedText;
-
-                try {
-                    updatedText = event.getDocument().getText(event.getOffset(), event.getLength());
-                    //CALL UPDATE MAP HERE
-
-                    //After doing the operation locally, get the packet to broadcast it out
-
-                    //TODO: BROADCAST THE PACKET TO THE OTHER USERS IN THE CHANNEL
-                    
-                } catch (Exception e) {
-                    updatedText = "";
-                }
-                System.out.println(updatedText);                
-            }
+            public void changedUpdate(DocumentEvent event){}
         });
 
         fileMenu.add(openItem);
@@ -272,22 +256,23 @@ public class EditorClient extends JFrame {
     public static void deleteFromEditor(byte[] packet) {
         //TODO call to update hashmap
 
-        // paramsToInsert[0] = offset
         int offset = Packets.parseOffset(packet);
-
-        // paramsToInsert[1] = length
         int length = Packets.parseLength(packet);
 
-        // Loop through Map from offset to length, deleting each character in the text area
+        try {
+            textArea.getDocument().remove(offset,length);
+        } catch (BadLocationException e) {
+            throw new RuntimeException(e);
+        }
+        /*// Loop through Map from offset to length, deleting each character in the text area
         for(int i = offset; i < length; i++){
             textArea.remove(i);
-        }
+        }*/
     }
 
     public static void main(String[] args) {
         UserService.getInstance();
 
-        EditorClient client = new EditorClient();
-        client.setVisible(true);
+        new EditorClient().setVisible(true);
     }
 }
