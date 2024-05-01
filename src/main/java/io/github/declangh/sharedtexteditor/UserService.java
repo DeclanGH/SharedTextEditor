@@ -4,18 +4,21 @@ import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.consumer.*;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Properties;
+import java.util.UUID;
 
 public class UserService {
 
     private static UserService instance;
     private KafkaProducer<String, byte[]> producer;
     private KafkaConsumer<String, byte[]> consumer;
-    private final String topic = "SharedTextEditor";
+    private final String TOPIC = "SharedTextEditor";
+
+    private final String USER_ID;
 
     private UserService(){
+        this.USER_ID = UUID.randomUUID().toString();
         setupProducer();
         setupConsumer();
     }
@@ -58,9 +61,10 @@ public class UserService {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
                 //System.out.println("records" + records.count());
                 for (ConsumerRecord<String, byte[]> record : records) {
+                    // ignore messages from yourself
+                    if (record.key().equals(USER_ID)) continue;
                     EditorClient.receivePacket(record.value());
                     System.out.println("Packet received");
-                    System.out.println(record.value());
                 }
             }
         }).start();
@@ -70,7 +74,7 @@ public class UserService {
         System.out.println("broadcasting");
 
         // Send message to the topic and register a callback
-        producer.send(new ProducerRecord<>(topic, packet), (metadata, exception) -> {
+        producer.send(new ProducerRecord<>(TOPIC, USER_ID, packet), (metadata, exception) -> {
             if (exception == null) {
                 System.out.println("Message sent successfully to topic: " + metadata.topic() +
                         ", partition: " + metadata.partition() +
