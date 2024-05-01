@@ -9,6 +9,7 @@ import java.awt.*;
 import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.lang.Runtime;
 
 public class EditorClient extends JFrame {
 
@@ -109,8 +110,15 @@ public class EditorClient extends JFrame {
         setJMenuBar(menuBar);
 
         fileChooser = new JFileChooser();
+
+        //This hook waits for runtime end and closes the producer and consumers associated with that user
+        Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
     }
 
+    //Call the UserService method to close the resources
+    private void closeResources(){
+        UserService.getInstance().close();
+    }
     private void openFile() {
         int returnValue = fileChooser.showOpenDialog(this);
         if (returnValue == JFileChooser.APPROVE_OPTION) {
