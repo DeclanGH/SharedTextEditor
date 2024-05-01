@@ -13,7 +13,6 @@ public class Packets {
     private static final int OPERATION_SIZE = Integer.BYTES;
 
     public static byte[] createInsertPacket(int offset, int length, String characters) {
-        System.out.println("Creating insert packet");
         int charactersLength = characters.length() * 2;
 
         ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + INT_PARAMS_SIZE + charactersLength);

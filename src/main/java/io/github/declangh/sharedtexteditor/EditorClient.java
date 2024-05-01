@@ -16,6 +16,12 @@ public class EditorClient extends JFrame {
     private JFileChooser fileChooser;
     private static HashMap<Integer, Character> textMap = new HashMap<>();
 
+    /*
+     * This flag tells us whether a document update was done by us or some external entity
+     * It helps the document listener ignore updates
+     */
+    private static boolean externalUpdateFlag = false;
+
     public EditorClient() {
         setTitle("Shared Text Editor");
         setSize(600, 400);
@@ -44,42 +50,51 @@ public class EditorClient extends JFrame {
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event){
-                String insertedText;
 
-                try {
-                    insertedText = event.getDocument().getText(event.getOffset(), event.getLength());
-                    // update map
-                    addOperation(event.getOffset(), event.getLength(), insertedText);
+                if (!externalUpdateFlag) {
+                    String insertedText;
+                    try {
+                        insertedText = event.getDocument().getText(event.getOffset(), event.getLength());
+                        // update map
+                        addOperation(event.getOffset(), event.getLength(), insertedText);
 
-                    // After doing the operation locally, get the packet to broadcast it out
-                    byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
-                    System.out.println(Arrays.toString(insertPacket));
+                        // After doing the operation locally, get the packet to broadcast it out
+                        byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
+                        System.out.println(Arrays.toString(insertPacket));
 
-                    UserService.getInstance().broadcast(insertPacket);
-                    
-                } catch (Exception e) {
-                    insertedText = "";
+                        UserService.getInstance().broadcast(insertPacket);
+
+                    } catch (Exception e) {
+                        System.out.println("Error:" + e.getMessage());
+                    }
                 }
-                //System.out.println(textMap.entrySet());
-                //System.out.println(insertedText);
+
+                // If it was set to true by receivePacket function, change back to false
+                externalUpdateFlag = false;
             }
 
             @Override
             public void removeUpdate(DocumentEvent event){
-                // String removedText;
-                int offset = event.getOffset();
-                int length = event.getLength();
 
-                // update map
-                deleteOperation(offset, length);
+                if (!externalUpdateFlag) {
+                    // String removedText;
+                    int offset = event.getOffset();
+                    int length = event.getLength();
 
-                // After doing the operation locally, get the packet to broadcast it out
-                byte[] deletePacket = Packets.createDeletePacket(event.getOffset(), event.getLength());
+                    // update map
+                    deleteOperation(offset, length);
 
-                // Broadcast the packet to the other users in the channel
-                UserService.getInstance().broadcast(deletePacket);
+                    // After doing the operation locally, get the packet to broadcast it out
+                    byte[] deletePacket = Packets.createDeletePacket(event.getOffset(), event.getLength());
 
-                System.out.println("Offset " + offset + " Length " + length);
+                    // Broadcast the packet to the other users in the channel
+                    UserService.getInstance().broadcast(deletePacket);
+
+                    System.out.println("Offset " + offset + " Length " + length);
+                }
+
+                // If it was set to true by receivePacket function, change back to false
+                externalUpdateFlag = false;
             }
 
             @Override
@@ -227,6 +242,9 @@ public class EditorClient extends JFrame {
 
     public static void receivePacket(byte[] packet){
 
+        // If we are receiving a packet, we are about to get an external update
+        externalUpdateFlag = true;
+
         // to run the updates on the Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
@@ -254,7 +272,6 @@ public class EditorClient extends JFrame {
 
     //This method will be for deleting characters from the text editor, it is passed in the offset and length of the deleted text
     public static void deleteFromEditor(byte[] packet) {
-        //TODO call to update hashmap
 
         int offset = Packets.parseOffset(packet);
         int length = Packets.parseLength(packet);
@@ -264,10 +281,11 @@ public class EditorClient extends JFrame {
         } catch (BadLocationException e) {
             throw new RuntimeException(e);
         }
-        /*// Loop through Map from offset to length, deleting each character in the text area
+
+        // Loop through Map from offset to length, deleting each character in the text area
         for(int i = offset; i < length; i++){
             textArea.remove(i);
-        }*/
+        }
     }
 
     public static void main(String[] args) {
