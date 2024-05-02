@@ -46,29 +46,19 @@ public class UserService {
     private void setupConsumer() {
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
         consumer = new KafkaConsumer<>(properties);
 
-
-        //TopicPartition partition0 = new TopicPartition("SharedTextEditor", 0);
-        //TopicPartition partition1 = new TopicPartition("SharedTextEditor", 1);
-        //TopicPartition partition2 = new TopicPartition("SharedTextEditor", 2);
-        //consumer.assign(Arrays.asList(partition0));
         consumer.subscribe(Arrays.asList(TOPIC), new ConsumerGroupListener());
 
         new Thread(() -> {
             while (true) {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
-                //System.out.println("records" + records.count());
+
                 for (ConsumerRecord<String, byte[]> record : records) {
-                    // ignore messages from yourself
-//                    if (record.key().equals(USER_ID)){
-//                        System.out.println("SAME USER");
-//                        continue;
-//                    }
                     EditorClient.receivePacket(record.value());
                     System.out.println("Packet received");
                 }
