@@ -111,14 +111,15 @@ public class EditorClient extends JFrame {
 
         fileChooser = new JFileChooser();
 
-        //This hook waits for runtime end and closes the producer and consumers associated with that user
+        // This hook waits for runtime end and closes the producer and consumers associated with that user
         Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
     }
 
-    //Call the UserService method to close the resources
+    // Call the UserService method to close the resources
     private void closeResources(){
         UserService.getInstance().close();
     }
+
     private void openFile() {
         int returnValue = fileChooser.showOpenDialog(this);
         if (returnValue == JFileChooser.APPROVE_OPTION) {

@@ -16,6 +16,7 @@ public class UserService {
     private KafkaProducer<String, byte[]> producer;
     private KafkaConsumer<String, byte[]> consumer;
     private final String TOPIC = "SharedTextEditor";
+    private final String USER_ID = UUID.randomUUID().toString();
 
     private UserService(){
         setupProducer();
@@ -47,7 +48,6 @@ public class UserService {
     private void setupConsumer() {
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
-        //properties.put(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -61,14 +61,16 @@ public class UserService {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
 
                 for (ConsumerRecord<String, byte[]> record : records) {
-                    EditorClient.receivePacket(record.value());
-                    System.out.println("Packet received");
+                    if (!USER_ID.equals(record.key())) {
+                        EditorClient.receivePacket(record.value());
+                        System.out.println("Packet received");
+                    }
                 }
             }
         }).start();
     }
 
-    //This class is used to implement a listener for when users join the group
+    // This class is used to implement a listener for when users join the group
     static class ConsumerGroupListener implements ConsumerRebalanceListener{
         @Override
         public void onPartitionsRevoked(Collection<TopicPartition> partitions){
@@ -85,9 +87,9 @@ public class UserService {
 
         // Send message to the topic and register a callback
         List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
-        //Send a message to each topic that is not the one your consumer is
+        // Send a message to each topic that is not the one your consumer is
         for(PartitionInfo partition : partitions) {
-            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), "test", packet), (metadata, exception) -> {
+            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, packet), (metadata, exception) -> {
                 if (exception == null) {
                     System.out.println("Message sent successfully to topic: " + metadata.topic() +
                             ", partition: " + metadata.partition() +
@@ -99,7 +101,7 @@ public class UserService {
         }
     }
 
-    //This method is called when the editor client class closed
+    // This method is called when the editor client class closed
     public synchronized void close(){
         System.out.println("Closing producer and consumers");
         if(producer != null){
