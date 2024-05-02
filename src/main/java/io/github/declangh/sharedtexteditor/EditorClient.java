@@ -17,6 +17,7 @@ public class EditorClient extends JFrame {
     private JFileChooser fileChooser;
     private static HashMap<Integer, Character> textMap = new HashMap<>();
 
+
     /*
      * This flag tells us whether a document update was done by us or some external entity
      * It helps the document listener ignore updates

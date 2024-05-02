@@ -1,5 +1,6 @@
 package io.github.declangh.sharedtexteditor;
 
+import com.google.crypto.tink.KeysetHandle;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.producer.*;
@@ -7,6 +8,8 @@ import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.*;
 
@@ -18,9 +21,17 @@ public class UserService {
     private final String TOPIC = "SharedTextEditor";
     private final String USER_ID = UUID.randomUUID().toString();
 
+    private KeysetHandle key;
+
     private UserService(){
         setupProducer();
         setupConsumer();
+        try {
+            key = AEADEncryption.createKey();
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
+        setupKeyConsumer();
         //setupNewUserConsumer(); //This method will contain a thread that watches for when a new user joins the session
     }
 
@@ -69,7 +80,36 @@ public class UserService {
             }
         }).start();
     }
+    private void setupKeyConsumer() {
+        Properties props = new Properties();
+        props.put("bootstrap.servers", "localhost:9092");
+        props.put("group.id", "key-distribution");
+        props.put("enable.auto.commit", "true");
+        props.put("auto.commit.interval.ms", "1000");
+        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
 
+        boolean gotKey = false;
+
+        try (KafkaConsumer<String, String> keyConsumer = new KafkaConsumer<>(props)) {
+            keyConsumer.subscribe(Collections.singletonList("key-topic"));
+
+            while (!gotKey) {
+                ConsumerRecords<String, String> records = keyConsumer.poll(100);
+                for (ConsumerRecord<String, String> record : records) {
+                    // Process the received key
+                    byte[] keyBytes = record.value().getBytes();
+                    if (!Arrays.equals(keyBytes, AEADEncryption.keyToByteArray(key))) {
+                        key = AEADEncryption.byteArrayToKey(keyBytes);
+                        gotKey = true;
+                    }
+                    System.out.println("Received key: " + key);
+                }
+            }
+        } catch (GeneralSecurityException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
     // This class is used to implement a listener for when users join the group
     static class ConsumerGroupListener implements ConsumerRebalanceListener{
         @Override
