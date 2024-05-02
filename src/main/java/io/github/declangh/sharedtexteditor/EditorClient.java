@@ -273,6 +273,8 @@ public class EditorClient extends JFrame {
         try {
             textArea.getDocument().insertString(offset, characters, null);
         } catch (BadLocationException e) {
+            System.out.println(offset);
+            System.out.println(characters);
             e.printStackTrace();
         }
     }

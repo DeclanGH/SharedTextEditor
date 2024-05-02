@@ -1,14 +1,13 @@
 package io.github.declangh.sharedtexteditor;
 
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 
 import java.time.Duration;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 
 public class UserService {
 
@@ -53,14 +52,23 @@ public class UserService {
 
         consumer = new KafkaConsumer<>(properties);
 
-        System.out.println(Collections.singletonList("SharedTextEditor"));
-        consumer.subscribe(Collections.singletonList("SharedTextEditor"), new ConsumerGroupListener());
+
+        TopicPartition partition0 = new TopicPartition("SharedTextEditor", 0);
+        //TopicPartition partition1 = new TopicPartition("SharedTextEditor", 1);
+        //TopicPartition partition2 = new TopicPartition("SharedTextEditor", 2);
+        consumer.assign(Arrays.asList(partition0));
+        consumer.subscribe(Arrays.asList("test"), new ConsumerGroupListener());
 
         new Thread(() -> {
             while (true) {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
                 //System.out.println("records" + records.count());
                 for (ConsumerRecord<String, byte[]> record : records) {
+                    // ignore messages from yourself
+//                    if (record.key().equals(USER_ID)){
+//                        System.out.println("SAME USER");
+//                        continue;
+//                    }
                     EditorClient.receivePacket(record.value());
                     System.out.println("Packet received");
                 }
@@ -84,7 +92,8 @@ public class UserService {
     public void broadcast(byte[] packet) {
 
         // Send message to the topic and register a callback
-        producer.send(new ProducerRecord<>(TOPIC, null, packet), (metadata, exception) -> {
+
+        producer.send(new ProducerRecord<>(TOPIC, packet), (metadata, exception) -> {
             if (exception == null) {
                 System.out.println("Message sent successfully to topic: " + metadata.topic() +
                         ", partition: " + metadata.partition() +
