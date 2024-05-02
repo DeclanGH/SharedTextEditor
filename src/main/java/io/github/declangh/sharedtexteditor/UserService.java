@@ -4,6 +4,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
 import java.time.Duration;
@@ -46,7 +47,8 @@ public class UserService {
     private void setupConsumer() {
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
+        //properties.put(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
@@ -82,16 +84,19 @@ public class UserService {
     public void broadcast(byte[] packet) {
 
         // Send message to the topic and register a callback
-
-        producer.send(new ProducerRecord<>(TOPIC, packet), (metadata, exception) -> {
-            if (exception == null) {
-                System.out.println("Message sent successfully to topic: " + metadata.topic() +
-                        ", partition: " + metadata.partition() +
-                        ", offset: " + metadata.offset());
-            } else {
-                System.err.println("Error sending message: " + exception.getMessage());
-            }
-        });
+        List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
+        //Send a message to each topic that is not the one your consumer is
+        for(PartitionInfo partition : partitions) {
+            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), "test", packet), (metadata, exception) -> {
+                if (exception == null) {
+                    System.out.println("Message sent successfully to topic: " + metadata.topic() +
+                            ", partition: " + metadata.partition() +
+                            ", offset: " + metadata.offset());
+                } else {
+                    System.err.println("Error sending message: " + exception.getMessage());
+                }
+            });
+        }
     }
 
     //This method is called when the editor client class closed
