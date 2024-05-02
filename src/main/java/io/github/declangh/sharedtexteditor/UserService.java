@@ -53,11 +53,11 @@ public class UserService {
         consumer = new KafkaConsumer<>(properties);
 
 
-        TopicPartition partition0 = new TopicPartition("SharedTextEditor", 0);
+        //TopicPartition partition0 = new TopicPartition("SharedTextEditor", 0);
         //TopicPartition partition1 = new TopicPartition("SharedTextEditor", 1);
         //TopicPartition partition2 = new TopicPartition("SharedTextEditor", 2);
-        consumer.assign(Arrays.asList(partition0));
-        consumer.subscribe(Arrays.asList("test"), new ConsumerGroupListener());
+        //consumer.assign(Arrays.asList(partition0));
+        consumer.subscribe(Arrays.asList(TOPIC), new ConsumerGroupListener());
 
         new Thread(() -> {
             while (true) {
