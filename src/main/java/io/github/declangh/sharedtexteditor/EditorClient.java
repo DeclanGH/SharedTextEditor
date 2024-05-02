@@ -269,7 +269,6 @@ public class EditorClient extends JFrame {
     public static void insertIntoEditor(byte[] packet) {
         int offset = Packets.parseOffset(packet);
         String characters = Packets.parseString(packet);
-        int length = Packets.parseLength(packet);
 
         try {
             textArea.getDocument().insertString(offset, characters, null);

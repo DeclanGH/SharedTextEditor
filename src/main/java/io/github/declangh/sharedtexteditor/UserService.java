@@ -17,10 +17,7 @@ public class UserService {
     private KafkaConsumer<String, byte[]> consumer;
     private final String TOPIC = "SharedTextEditor";
 
-    private final String USER_ID;
-
     private UserService(){
-        this.USER_ID = UUID.randomUUID().toString();
         setupProducer();
         setupConsumer();
         //setupNewUserConsumer(); //This method will contain a thread that watches for when a new user joins the session
@@ -64,8 +61,6 @@ public class UserService {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
                 //System.out.println("records" + records.count());
                 for (ConsumerRecord<String, byte[]> record : records) {
-                    // ignore messages from yourself
-                    if (record.key().equals(USER_ID)) continue;
                     EditorClient.receivePacket(record.value());
                     System.out.println("Packet received");
                 }
@@ -83,15 +78,13 @@ public class UserService {
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
             System.out.println("USER HAS JOINED THE SESSION");
-            System.out.println(UserService.getInstance().USER_ID);
         }
     }
 
     public void broadcast(byte[] packet) {
-        System.out.println("broadcasting");
 
         // Send message to the topic and register a callback
-        producer.send(new ProducerRecord<>(TOPIC, USER_ID, packet), (metadata, exception) -> {
+        producer.send(new ProducerRecord<>(TOPIC, null, packet), (metadata, exception) -> {
             if (exception == null) {
                 System.out.println("Message sent successfully to topic: " + metadata.topic() +
                         ", partition: " + metadata.partition() +
