@@ -8,21 +8,21 @@ import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.io.*;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.lang.Runtime;
 
 public class EditorClient extends JFrame {
 
     private static JTextArea textArea;
     private JFileChooser fileChooser;
-    private static HashMap<Integer, Character> textMap = new HashMap<>();
 
 
     /*
-     * This flag tells us whether a document update was done by us or some external entity
-     * It helps the document listener ignore updates
+     * 1.) externalUpdateFlag tells us whether a document update was done by us or some other user
+     *     It helps the document listener ignore updates by other users
+     * 2.)
      */
     private static boolean externalUpdateFlag = false;
+    private static int operationNumber = 0;
 
     public EditorClient() {
         setTitle("Shared Text Editor");
@@ -56,10 +56,13 @@ public class EditorClient extends JFrame {
                 if (!externalUpdateFlag) {
                     String insertedText;
                     try {
-                        insertedText = event.getDocument().getText(event.getOffset(), event.getLength());
+                        int offset = event.getOffset();
+                        int length = event.getLength();
+
+                        insertedText = event.getDocument().getText(offset, length);
 
                         // After doing the operation locally, get the packet to broadcast it out
-                        byte[] insertPacket = Packets.createInsertPacket(event.getOffset(), event.getLength(), insertedText);
+                        byte[] insertPacket = Packets.createInsertPacket(offset, ++operationNumber, length, insertedText);
                         System.out.println(Arrays.toString(insertPacket));
 
                         UserService.getInstance().broadcast(insertPacket);
@@ -77,12 +80,12 @@ public class EditorClient extends JFrame {
             public void removeUpdate(DocumentEvent event){
 
                 if (!externalUpdateFlag) {
-                    // String removedText;
+
                     int offset = event.getOffset();
                     int length = event.getLength();
 
-                    // After doing the operation locally, get the packet to broadcast it out
-                    byte[] deletePacket = Packets.createDeletePacket(event.getOffset(), event.getLength());
+                    // Create the packet
+                    byte[] deletePacket = Packets.createDeletePacket(offset, ++operationNumber, length);
 
                     // Broadcast the packet to the other users in the channel
                     UserService.getInstance().broadcast(deletePacket);
@@ -149,6 +152,12 @@ public class EditorClient extends JFrame {
         // If we are receiving a packet, we are about to get an external update
         externalUpdateFlag = true;
 
+        int receivedOperationNumber = Packets.parseOperationNum(packet);
+
+        if (receivedOperationNumber == operationNumber) {
+            return;
+        } else operationNumber = receivedOperationNumber;
+
         // to run the updates on the Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
@@ -157,7 +166,6 @@ public class EditorClient extends JFrame {
                 deleteFromEditor(packet);
             }
         });
-
 
     }
 
