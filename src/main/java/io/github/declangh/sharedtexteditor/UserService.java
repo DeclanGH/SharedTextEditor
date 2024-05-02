@@ -7,6 +7,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.*;
@@ -20,6 +21,7 @@ public class UserService {
     private final String USER_ID = UUID.randomUUID().toString();
 
     private KeysetHandle key;
+    private String associatedData;
 
     private UserService(){
         setupProducer();
@@ -30,6 +32,8 @@ public class UserService {
             throw new RuntimeException(e);
         }
         setupKeyConsumer();
+
+        this.associatedData = "Secret";
     }
 
     /*
@@ -70,8 +74,16 @@ public class UserService {
 
                 for (ConsumerRecord<String, byte[]> record : records) {
                     if (!USER_ID.equals(record.key())) {
-                        EditorClient.receivePacket(record.value());
-                        System.out.println("Packet received");
+                        byte[] encryptedPacket = record.value();
+                        try {
+                            byte[] packet = AEADEncryption.decrypt(encryptedPacket, associatedData, key);
+                            EditorClient.receivePacket(packet);
+                            System.out.println("Packet received");
+                        } catch (UnsupportedEncodingException e) {
+                            throw new RuntimeException(e);
+                        } catch (GeneralSecurityException e) {
+                            throw new RuntimeException(e);
+                        }
                     }
                 }
             }
@@ -128,15 +140,23 @@ public class UserService {
         List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
         // Send a message to each topic that is not the one your consumer is
         for(PartitionInfo partition : partitions) {
-            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, packet), (metadata, exception) -> {
+            try {
+                byte[] encryptedPacket = AEADEncryption.encrypt(packet, associatedData, key);
+
+                producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, encryptedPacket), (metadata, exception) -> {
                 if (exception == null) {
                     System.out.println("Message sent successfully to topic: " + metadata.topic() +
                             ", partition: " + metadata.partition() +
                             ", offset: " + metadata.offset());
-                } else {
-                    System.err.println("Error sending message: " + exception.getMessage());
-                }
-            });
+                    } else {
+                        System.err.println("Error sending message: " + exception.getMessage());
+                    }
+                });
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            } catch (GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
