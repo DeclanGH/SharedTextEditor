@@ -1,8 +1,6 @@
 package io.github.declangh.sharedtexteditor;
 
 import com.google.crypto.tink.KeysetHandle;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.PartitionInfo;
@@ -32,7 +30,6 @@ public class UserService {
             throw new RuntimeException(e);
         }
         setupKeyConsumer();
-        //setupNewUserConsumer(); //This method will contain a thread that watches for when a new user joins the session
     }
 
     /*
@@ -80,6 +77,7 @@ public class UserService {
             }
         }).start();
     }
+
     private void setupKeyConsumer() {
         Properties props = new Properties();
         props.put("bootstrap.servers", "localhost:9092");
@@ -110,6 +108,7 @@ public class UserService {
             throw new RuntimeException(e);
         }
     }
+
     // This class is used to implement a listener for when users join the group
     static class ConsumerGroupListener implements ConsumerRebalanceListener{
         @Override
