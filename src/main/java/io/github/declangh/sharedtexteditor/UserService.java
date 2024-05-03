@@ -18,23 +18,22 @@ public class UserService {
     private KafkaProducer<String, byte[]> producer;
     private KafkaConsumer<String, byte[]> consumer;
     private final String TOPIC = "SharedTextEditor";
-    private final String BOOTSTRAP_SERVERS = "pi.cs.oswego.edu:26926,pi.cs.oswego.edu:26931";
     public final String USER_ID = UUID.randomUUID().toString();
 
     private KeysetHandle key;
-    private final String associatedData;
+    private String associatedData;
 
-    private UserService() {
+    private UserService(){
         setupProducer();
         setupConsumer();
         try {
             key = AEADEncryption.createKey();
-            System.out.println("key" + key);
         } catch (GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
+        setupKeyConsumer();
+
         this.associatedData = "Secret";
-        //setupKeyConsumer();
     }
 
     /*
@@ -42,7 +41,7 @@ public class UserService {
      * if we do not have one, then a new instance shall be made.
      * We also want to return an instance such that it is not being called by multiple threads
      */
-    public static synchronized UserService getInstance() throws GeneralSecurityException, IOException {
+    public static synchronized UserService getInstance() {
         if (instance == null) {
             instance = new UserService();
         }
@@ -51,7 +50,7 @@ public class UserService {
 
     private void setupProducer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", BOOTSTRAP_SERVERS);
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
         properties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
@@ -60,7 +59,7 @@ public class UserService {
 
     private void setupConsumer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", BOOTSTRAP_SERVERS);
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -79,19 +78,21 @@ public class UserService {
                         try {
                             byte[] packet = AEADEncryption.decrypt(encryptedPacket, associatedData, key);
                             EditorClient.receivePacket(packet);
-                        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                            System.out.println("Packet received");
+                        } catch (UnsupportedEncodingException e) {
+                            throw new RuntimeException(e);
+                        } catch (GeneralSecurityException e) {
                             throw new RuntimeException(e);
                         }
-                        System.out.println("Packet received");
                     }
                 }
             }
         }).start();
     }
 
-    private void setupKeyConsumer() throws GeneralSecurityException, IOException {
+    private void setupKeyConsumer() {
         Properties props = new Properties();
-        props.put("bootstrap.servers", BOOTSTRAP_SERVERS);
+        props.put("bootstrap.servers", "localhost:9092");
         props.put("group.id", "key-distribution");
         props.put("enable.auto.commit", "true");
         props.put("auto.commit.interval.ms", "1000");
@@ -100,24 +101,24 @@ public class UserService {
 
         boolean gotKey = false;
 
-        KafkaConsumer<String, byte[]> keyConsumer = new KafkaConsumer<>(props);
+        try (KafkaConsumer<String, String> keyConsumer = new KafkaConsumer<>(props)) {
+            keyConsumer.subscribe(Collections.singletonList("key-topic"));
 
-        keyConsumer.subscribe(List.of("key-topic"), new ConsumerGroupListener());
-
-        while (true) {
-            ConsumerRecords<String, byte[]> records = keyConsumer.poll(100);
-            for (ConsumerRecord<String, byte[]> record : records) {
-                // Process the received key
-                byte[] keyBytes = record.value();
-                if (!Arrays.equals(keyBytes, AEADEncryption.keyToByteArray(key))) {
-                    key = AEADEncryption.byteArrayToKey(keyBytes);
-                    //gotKey = true;
+            while (!gotKey) {
+                ConsumerRecords<String, String> records = keyConsumer.poll(100);
+                for (ConsumerRecord<String, String> record : records) {
+                    // Process the received key
+                    byte[] keyBytes = record.value().getBytes();
+                    if (!Arrays.equals(keyBytes, AEADEncryption.keyToByteArray(key))) {
+                        key = AEADEncryption.byteArrayToKey(keyBytes);
+                        gotKey = true;
+                    }
+                    System.out.println("Received key: " + key);
                 }
-                System.out.println("Received key: " + key);
             }
-            break;
+        } catch (GeneralSecurityException | IOException e) {
+            throw new RuntimeException(e);
         }
-        keyConsumer.close();
     }
 
     // This class is used to implement a listener for when users join the group
@@ -130,53 +131,35 @@ public class UserService {
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
             System.out.println("USER HAS JOINED THE SESSION");
-            try {
-                UserService service = UserService.getInstance();
-                service.sendKeyToUser(service.key);
-            } catch (GeneralSecurityException | IOException e) {
-                throw new RuntimeException(e);
-            }
-
         }
     }
 
-    public void broadcast(byte[] packet) throws GeneralSecurityException, UnsupportedEncodingException {
+    public void broadcast(byte[] packet) {
 
         // Send message to the topic and register a callback
         List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
         // Send a message to each topic that is not the one your consumer is
         for(PartitionInfo partition : partitions) {
-            byte[] encryptedPacket = AEADEncryption.encrypt(packet, associatedData, key);
-            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, encryptedPacket), (metadata, exception) -> {
+            try {
+                byte[] encryptedPacket = AEADEncryption.encrypt(packet, associatedData, key);
+
+                producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, encryptedPacket), (metadata, exception) -> {
                 if (exception == null) {
                     System.out.println("Message sent successfully to topic: " + metadata.topic() +
                             ", partition: " + metadata.partition() +
                             ", offset: " + metadata.offset());
-                } else {
-                    System.err.println("Error sending message: " + exception.getMessage());
-                }
-            });
+                    } else {
+                        System.err.println("Error sending message: " + exception.getMessage());
+                    }
+                });
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            } catch (GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
-    private void sendKeyToUser(KeysetHandle key) throws GeneralSecurityException, IOException {
-        //Send a key on the key topic, then call the method to set up key consumer
-        List<PartitionInfo> partitions = producer.partitionsFor("key-topic");
-        byte[] keyBytes = AEADEncryption.keyToByteArray(key);
-        // Send a message to each topic that is not the one your consumer is
-        for(PartitionInfo partition : partitions) {
-            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, keyBytes), (metadata, exception) -> {
-                if (exception == null) {
-                    System.out.println("Message sent successfully to topic: " + metadata.topic() +
-                            ", partition: " + metadata.partition() +
-                            ", offset: " + metadata.offset());
-                } else {
-                    System.err.println("Error sending message: " + exception.getMessage());
-                }
-            });
-        }
-        setupKeyConsumer();
-    }
     // This method is called when the editor client class closed
     public synchronized void close(){
         System.out.println("Closing producer and consumers");
