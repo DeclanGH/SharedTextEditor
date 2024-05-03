@@ -7,6 +7,7 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.lang.Runtime;
 
@@ -88,7 +89,13 @@ public class EditorClient extends JFrame {
                     byte[] deletePacket = Packets.createDeletePacket(offset, ++operationNumber, length);
 
                     // Broadcast the packet to the other users in the channel
-                    UserService.getInstance().broadcast(deletePacket);
+                    try {
+                        UserService.getInstance().broadcast(deletePacket);
+                    } catch (GeneralSecurityException e) {
+                        throw new RuntimeException(e);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
 
                     System.out.println("Offset " + offset + " Length " + length);
                 }
@@ -111,11 +118,11 @@ public class EditorClient extends JFrame {
         fileChooser = new JFileChooser();
 
         // This hook waits for runtime end and closes the producer and consumers associated with that user
-        Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
+        //Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
     }
 
     // Call the UserService method to close the resources
-    private void closeResources(){
+    private void closeResources() throws GeneralSecurityException, IOException {
         UserService.getInstance().close();
     }
 
@@ -196,9 +203,10 @@ public class EditorClient extends JFrame {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws GeneralSecurityException, IOException {
         UserService.getInstance();
 
+        System.out.println("HERE");
         new EditorClient().setVisible(true);
     }
 }
