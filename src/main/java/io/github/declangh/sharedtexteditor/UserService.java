@@ -19,12 +19,12 @@ public class UserService {
     private KafkaConsumer<String, byte[]> consumer;
     private final String TOPIC = "SharedTextEditor";
     private final String BOOTSTRAP_SERVERS = "pi.cs.oswego.edu:26926,pi.cs.oswego.edu:26931";
-    private final String USER_ID = UUID.randomUUID().toString();
+    public final String USER_ID = UUID.randomUUID().toString();
 
     private KeysetHandle key;
     private final String associatedData;
 
-    private UserService() throws GeneralSecurityException, IOException {
+    private UserService() {
         setupProducer();
         setupConsumer();
         try {
