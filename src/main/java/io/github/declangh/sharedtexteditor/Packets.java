@@ -6,12 +6,14 @@ public class Packets {
 
     public enum Operation {
         INSERT,
-        DELETE
+        DELETE,
+        REQUEST,
+        UPDATE
     }
 
     private static final int INT_PARAMS_SIZE = Integer.BYTES * 2;
-    private static final int OPERATION_SIZE = Integer.BYTES;
-    private static final int OPNUM_SIZE = Integer.BYTES;
+    private static final int OPERATION_SIZE  = Integer.BYTES;
+    private static final int OPNUM_SIZE      = Integer.BYTES;
 
     public static byte [] createInsertPacket(int offset, int opNum, int length, String characters) {
         if (characters == null) throw new NullPointerException("characters cannot be null");
@@ -45,12 +47,92 @@ public class Packets {
         return packetBuffer.array();
     }
 
+    public static byte[] createTextAreaRequestPacket(String requesterID) {
+
+        int uidLength = requesterID.length() * 2;
+
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + uidLength);
+
+        packetBuffer.putInt(Operation.REQUEST.ordinal());
+
+        // put the ID length, necessary for parsing ID
+        packetBuffer.putInt(requesterID.length()/2);
+
+        // put the ID
+        for (char c : requesterID.toCharArray()) packetBuffer.putChar(c);
+
+        return packetBuffer.array();
+    }
+
+    public static byte[] createUpdatePacket(String requesterID, String textArea) {
+        int charactersLength = requesterID.length() * 2;
+
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + charactersLength);
+
+        // put the operation
+        packetBuffer.putInt(Operation.UPDATE.ordinal());
+
+        // put the ID length, necessary for parsing ID
+        packetBuffer.putInt(requesterID.length()/2);
+
+        // put the ID
+        for (char c : requesterID.toCharArray()) packetBuffer.putChar(c);
+
+        // put the textArea
+        for (char c : textArea.toCharArray()) packetBuffer.putChar(c);
+
+        return packetBuffer.array();
+    }
+
     public static Operation parseOperation(byte[] packet) {
         ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
         int operationOrdinal = packetBuffer.getInt();
 
         // return int at the first position of packet
         return Operation.values()[operationOrdinal];
+    }
+
+    public static String parseID(byte[] packet) {
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+
+        packetBuffer.getInt();
+
+        int limit = packetBuffer.getInt();
+
+        StringBuilder builder = new StringBuilder();
+
+        for (int i = 0; i < limit; i++) {
+            if (packetBuffer.hasRemaining()) builder.append(packetBuffer.getChar());
+            else break;
+        }
+
+
+
+        return builder.toString();
+    }
+
+    public static String parseTextArea(byte[] packet) {
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+
+        // skip operation
+        packetBuffer.getInt();
+
+        // skip length
+        int limit = packetBuffer.getInt();
+
+        // skip id
+        for (int i = 0; i < limit; i++)
+            if (packetBuffer.hasRemaining()) packetBuffer.getChar();
+            else break;
+
+        StringBuilder builder = new StringBuilder();
+
+        // get text area
+        while (packetBuffer.hasRemaining()) {
+            builder.append(packetBuffer.getChar());
+        }
+
+        return builder.toString();
     }
 
     public static int parseOperationNum(byte[] packet) {
