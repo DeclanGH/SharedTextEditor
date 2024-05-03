@@ -25,7 +25,20 @@ public class EditorClient extends JFrame {
     private static boolean externalUpdateFlag = false;
     private static int operationNumber = 0;
 
-    public EditorClient() {
+    // User ID from user service class
+    private final static String USER_ID;
+
+    static {
+        try {
+            USER_ID = UserService.getInstance().USER_ID;
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public EditorClient() throws GeneralSecurityException, IOException {
         setTitle("Shared Text Editor");
         setSize(600, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -48,6 +61,9 @@ public class EditorClient extends JFrame {
 
         // Exit the application
         exitItem.addActionListener(e -> System.exit(0));
+
+        // request the current text area when you join
+        requestCurrentTextArea();
 
         // Make the text area
         textArea.getDocument().addDocumentListener(new DocumentListener() {
@@ -121,6 +137,11 @@ public class EditorClient extends JFrame {
         //Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
     }
 
+    private void requestCurrentTextArea() throws GeneralSecurityException, IOException {
+        byte[] requestPacket = Packets.createTextAreaRequestPacket(USER_ID);
+        UserService.getInstance().broadcast(requestPacket);
+    }
+
     // Call the UserService method to close the resources
     private void closeResources() throws GeneralSecurityException, IOException {
         UserService.getInstance().close();
@@ -169,11 +190,51 @@ public class EditorClient extends JFrame {
         SwingUtilities.invokeLater(() -> {
             if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
                 insertIntoEditor(packet);
-            } else {
+            } else if (Packets.parseOperation(packet) == Packets.Operation.DELETE) {
                 deleteFromEditor(packet);
+            } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
+                String requesterID = Packets.parseID(packet);
+                // only send update if you are not the requester
+                if (!requesterID.equals(USER_ID)) {
+                    try {
+                        sendTextArea(requesterID);
+                    } catch (GeneralSecurityException e) {
+                        throw new RuntimeException(e);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            } else { // update packet
+                // only take the update if you are the requester
+                if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
             }
         });
 
+    }
+
+
+    private static void sendTextArea(String requesterID) throws GeneralSecurityException, IOException {
+
+        String textAreaText = "";
+        try {
+            textAreaText = textArea.getText();
+        } catch (NullPointerException e) {
+            return;
+        }
+
+        byte[] updatePacket = Packets.createUpdatePacket(requesterID, textAreaText);
+        UserService.getInstance().broadcast(updatePacket);
+    }
+
+    private static void updateTextArea(byte[] packet) {
+        String currrentTextAreaText = textArea.getText();
+        String receivedTextAreaText = Packets.parseTextArea(packet);
+
+        // we do not want text areas repeatedly sent to us
+        if (textArea.getDocument() != null || currrentTextAreaText.equals(receivedTextAreaText))
+            return;
+
+        textArea.setText(receivedTextAreaText);
     }
 
     // This method will be for inserting characters into the text editor, it is passed in the offset and length of the inserted text
