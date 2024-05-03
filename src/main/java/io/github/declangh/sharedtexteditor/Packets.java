@@ -65,6 +65,7 @@ public class Packets {
     }
 
     public static byte[] createUpdatePacket(String requesterID, String textArea) {
+
         int charactersLength = requesterID.length() * 2;
 
         ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + charactersLength);
