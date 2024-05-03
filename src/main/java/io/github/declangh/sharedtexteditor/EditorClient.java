@@ -26,19 +26,9 @@ public class EditorClient extends JFrame {
     private static int operationNumber = 0;
 
     // User ID from user service class
-    private final static String USER_ID;
+    private final static String USER_ID = UserService.getInstance().USER_ID;
 
-    static {
-        try {
-            USER_ID = UserService.getInstance().USER_ID;
-        } catch (GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public EditorClient() throws GeneralSecurityException, IOException {
+    public EditorClient() {
         setTitle("Shared Text Editor");
         setSize(600, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -63,7 +53,7 @@ public class EditorClient extends JFrame {
         exitItem.addActionListener(e -> System.exit(0));
 
         // request the current text area when you join
-        requestCurrentTextArea();
+        //requestCurrentTextArea();
 
         // Make the text area
         textArea.getDocument().addDocumentListener(new DocumentListener() {
@@ -78,8 +68,9 @@ public class EditorClient extends JFrame {
 
                         insertedText = event.getDocument().getText(offset, length);
 
+                        operationNumber += 1;
                         // After doing the operation locally, get the packet to broadcast it out
-                        byte[] insertPacket = Packets.createInsertPacket(offset, ++operationNumber, length, insertedText);
+                        byte[] insertPacket = Packets.createInsertPacket(offset, operationNumber, length, insertedText);
                         System.out.println(Arrays.toString(insertPacket));
 
                         UserService.getInstance().broadcast(insertPacket);
@@ -101,17 +92,13 @@ public class EditorClient extends JFrame {
                     int offset = event.getOffset();
                     int length = event.getLength();
 
+                    operationNumber += 1;
                     // Create the packet
-                    byte[] deletePacket = Packets.createDeletePacket(offset, ++operationNumber, length);
+                    byte[] deletePacket = Packets.createDeletePacket(offset, operationNumber, length);
 
                     // Broadcast the packet to the other users in the channel
-                    try {
-                        UserService.getInstance().broadcast(deletePacket);
-                    } catch (GeneralSecurityException e) {
-                        throw new RuntimeException(e);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                    UserService.getInstance().broadcast(deletePacket);
+
 
                     System.out.println("Offset " + offset + " Length " + length);
                 }
@@ -137,7 +124,7 @@ public class EditorClient extends JFrame {
         //Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
     }
 
-    private void requestCurrentTextArea() throws GeneralSecurityException, IOException {
+    private void requestCurrentTextArea() {
         byte[] requestPacket = Packets.createTextAreaRequestPacket(USER_ID);
         UserService.getInstance().broadcast(requestPacket);
     }
@@ -186,6 +173,8 @@ public class EditorClient extends JFrame {
             return;
         } else operationNumber = receivedOperationNumber;
 
+        System.out.println(operationNumber);
+
         // to run the updates on the Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
@@ -195,15 +184,7 @@ public class EditorClient extends JFrame {
             } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
                 String requesterID = Packets.parseID(packet);
                 // only send update if you are not the requester
-                if (!requesterID.equals(USER_ID)) {
-                    try {
-                        sendTextArea(requesterID);
-                    } catch (GeneralSecurityException e) {
-                        throw new RuntimeException(e);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+                if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
             } else { // update packet
                 // only take the update if you are the requester
                 if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
@@ -213,7 +194,7 @@ public class EditorClient extends JFrame {
     }
 
 
-    private static void sendTextArea(String requesterID) throws GeneralSecurityException, IOException {
+    private static void sendTextArea(String requesterID) {
 
         String textAreaText = "";
         try {
