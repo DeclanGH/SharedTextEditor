@@ -14,7 +14,7 @@ public class UserService {
     private static UserService instance;
     private KafkaProducer<String, byte[]> producer;
     private KafkaConsumer<String, byte[]> consumer;
-    private final String TOPIC = "SharedTextEditor";
+    private final String TOPIC = "SharedTextEditor1";
     public final String USER_ID = UUID.randomUUID().toString();
 
 
@@ -37,7 +37,7 @@ public class UserService {
 
     private void setupProducer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26926");
         properties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
@@ -46,8 +46,8 @@ public class UserService {
 
     private void setupConsumer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26926");
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "2");
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
@@ -63,7 +63,7 @@ public class UserService {
                     if (!USER_ID.equals(record.key())) {
                         byte[] packet = record.value();
                         EditorClient.receivePacket(packet);
-                        System.out.println("Packet received");
+                        //System.out.println("Packet received");
                     }
                 }
             }
@@ -88,17 +88,15 @@ public class UserService {
         // Send message to the topic and register a callback
         List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
         // Send a message to each topic that is not the one your consumer is
-        for(PartitionInfo partition : partitions) {
-            producer.send(new ProducerRecord<>(TOPIC, partition.partition(), USER_ID, packet), (metadata, exception) -> {
-                if (exception == null) {
-                    System.out.println("Message sent successfully to topic: " + metadata.topic() +
-                            ", partition: " + metadata.partition() +
-                            ", offset: " + metadata.offset());
-                } else {
-                    System.err.println("Error sending message: " + exception.getMessage());
-                }
-            });
-        }
+        producer.send(new ProducerRecord<>(TOPIC, packet), (metadata, exception) -> {
+            if (exception == null) {
+                System.out.println("Message sent successfully to topic: " + metadata.topic() +
+                        ", partition: " + metadata.partition() +
+                        ", offset: " + metadata.offset());
+            } else {
+                System.err.println("Error sending message: " + exception.getMessage());
+            }
+        });
     }
 
     // This method is called when the editor client class closed
