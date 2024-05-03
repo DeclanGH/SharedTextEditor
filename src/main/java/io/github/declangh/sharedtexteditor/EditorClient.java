@@ -23,7 +23,7 @@ public class EditorClient extends JFrame {
      * 2.)
      */
     private static boolean externalUpdateFlag = false;
-    private static int operationNumber = 0;
+    //private static int operationNumber = 0;
 
     // User ID from user service class
     private final static String USER_ID = UserService.getInstance().USER_ID;
@@ -53,14 +53,17 @@ public class EditorClient extends JFrame {
         exitItem.addActionListener(e -> System.exit(0));
 
         // request the current text area when you join
-        requestCurrentTextArea();
+        //requestCurrentTextArea();
 
         // Make the text area
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event){
-
-                if (!externalUpdateFlag) {
+                System.out.println(event.getDocument());
+                System.out.println(textArea.getDocument());
+                //Check to see if the event matches the text area, if it does, that means it was added through a keyboard
+                if (externalUpdateFlag == false) {
+                    //System.out.println("Internal insert");
                     String insertedText;
                     try {
                         int offset = event.getOffset();
@@ -68,10 +71,12 @@ public class EditorClient extends JFrame {
 
                         insertedText = event.getDocument().getText(offset, length);
 
+                        //operationNumber += 1;
+                        lastInsertOpNum += 1;
                         // After doing the operation locally, get the packet to broadcast it out
-                        byte[] insertPacket = Packets.createInsertPacket(offset, ++operationNumber, length, insertedText);
+                        byte[] insertPacket = Packets.createInsertPacket(offset, lastInsertOpNum, length, insertedText);
                         System.out.println(Arrays.toString(insertPacket));
-
+                        System.out.println("text Inserted");
                         UserService.getInstance().broadcast(insertPacket);
 
                     } catch (Exception e) {
@@ -79,20 +84,25 @@ public class EditorClient extends JFrame {
                     }
                 }
 
+                System.out.println("Flag " + externalUpdateFlag);
                 // If it was set to true by receivePacket function, change back to false
-                externalUpdateFlag = false;
+                //externalUpdateFlag = false;
             }
 
             @Override
             public void removeUpdate(DocumentEvent event){
 
-                if (!externalUpdateFlag) {
+                System.out.println(event.getDocument());
+                System.out.println(textArea.getDocument());
+                if (externalUpdateFlag == false) {
 
                     int offset = event.getOffset();
                     int length = event.getLength();
 
+                    //operationNumber += 1;
+                    lastDeleteOpNum += 1;
                     // Create the packet
-                    byte[] deletePacket = Packets.createDeletePacket(offset, ++operationNumber, length);
+                    byte[] deletePacket = Packets.createDeletePacket(offset, lastDeleteOpNum, length);
 
                     // Broadcast the packet to the other users in the channel
                     UserService.getInstance().broadcast(deletePacket);
@@ -102,7 +112,7 @@ public class EditorClient extends JFrame {
                 }
 
                 // If it was set to true by receivePacket function, change back to false
-                externalUpdateFlag = false;
+                //externalUpdateFlag = false;
             }
 
             @Override
@@ -160,27 +170,36 @@ public class EditorClient extends JFrame {
         }
     }
 
+    private static int lastInsertOpNum = 1;
+    private static int lastDeleteOpNum = 1;
     public static void receivePacket(byte[] packet){
 
         // If we are receiving a packet, we are about to get an external update
-        externalUpdateFlag = true;
 
-        int receivedOperationNumber = Packets.parseOperationNum(packet);
-
-        if (receivedOperationNumber == operationNumber) {
-            return;
-        } else operationNumber = receivedOperationNumber;
-
+        System.out.println("OpNum " + lastInsertOpNum);
+        System.out.println("OpNum Passed In" + Packets.parseOperationNum(packet));
         // to run the updates on the Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
-                insertIntoEditor(packet);
+                int opNum = Packets.parseOperationNum(packet);
+                if(opNum > lastInsertOpNum) {
+                    lastInsertOpNum = opNum;
+                    insertIntoEditor(packet);
+                }
             } else if (Packets.parseOperation(packet) == Packets.Operation.DELETE) {
-                deleteFromEditor(packet);
+                int opNum = Packets.parseOperationNum(packet);
+                if(opNum > lastDeleteOpNum) {
+                    lastDeleteOpNum = opNum;
+                    deleteFromEditor(packet);
+                }
             } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
                 String requesterID = Packets.parseID(packet);
+                //System.out.println("User ID " + USER_ID);
+                //System.out.println("Request ID " + requesterID);
                 // only send update if you are not the requester
-                if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
+                if (!requesterID.equals(USER_ID)){
+                    //System.out.println("ID " + USER_ID);
+                    sendTextArea(requesterID);}
             } else { // update packet
                 // only take the update if you are the requester
                 if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
@@ -220,7 +239,9 @@ public class EditorClient extends JFrame {
         String characters = Packets.parseString(packet);
 
         try {
+            externalUpdateFlag = true;
             textArea.getDocument().insertString(offset, characters, null);
+            externalUpdateFlag = false;
         } catch (BadLocationException e) {
             System.out.println(offset);
             System.out.println(characters);
@@ -233,9 +254,10 @@ public class EditorClient extends JFrame {
 
         int offset = Packets.parseOffset(packet);
         int length = Packets.parseLength(packet);
-
         try {
+            externalUpdateFlag = true;
             textArea.getDocument().remove(offset,length);
+            externalUpdateFlag = false;
         } catch (BadLocationException e) {
             throw new RuntimeException(e);
         }
@@ -244,7 +266,7 @@ public class EditorClient extends JFrame {
     public static void main(String[] args) throws GeneralSecurityException, IOException {
         UserService.getInstance();
 
-        System.out.println("HERE");
+        //System.out.println("HERE");
         new EditorClient().setVisible(true);
     }
 }
