@@ -17,7 +17,7 @@ public class UserService {
     private final String TOPIC = "SharedTextEditor1";
     public final String USER_ID = UUID.randomUUID().toString();
 
-    private final String GROUP_ID = String.valueOf(new Random().nextInt(20));
+    private final String GROUP_ID = String.valueOf(new Random().nextInt(20) + 1);
 
 
     private UserService(){
