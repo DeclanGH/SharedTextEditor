@@ -107,8 +107,6 @@ public class Packets {
             else break;
         }
 
-
-
         return builder.toString();
     }
 
