@@ -1,5 +1,7 @@
 package io.github.declangh.sharedtexteditor;
 
+import org.apache.catalina.User;
+
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -7,6 +9,7 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
+import java.security.GeneralSecurityException;
 
 public class EditorClient extends JFrame {
 
@@ -171,7 +174,19 @@ public class EditorClient extends JFrame {
                 String requesterID = Packets.parseID(packet);
                 // only send update if you are not the requester
                 if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
-            } else { // update packet
+            } else if (Packets.parseOperation(packet) == Packets.Operation.KEY) {
+                String uID = Packets.parseID(packet);
+                int numAgreed = Packets.parseOperationNum(packet);
+                if(numAgreed > UserService.getInstance().getNumAgreed() || uID.compareTo(UserService.getInstance().USER_ID) > 0){
+                    //Set the key equal to the one that is passed in
+                    try {
+                        UserService.getInstance().setKey(Packets.parseKey(packet));
+                    } catch (GeneralSecurityException | IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            { // update packet
                 // only take the update if you are the requester
                 if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
             }

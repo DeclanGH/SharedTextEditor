@@ -6,6 +6,9 @@ import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.*;
 
@@ -19,10 +22,21 @@ public class UserService {
 
     private final String GROUP_ID = String.valueOf(new Random().nextInt(20) + 1);
 
+    private static int numAgreed = 1;
+    private static KeysetHandle key;
+    private final String ASSOCIATED_DATA = "8b7483ac761ff7a6928ebde17be8e8172f2a24f13569313cd91df5aede45c73f";
+
 
     private UserService(){
         setupProducer();
         setupConsumer();
+
+        try {
+            key = AEADEncryption.createKey();
+        } catch (GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
+        System.out.println(GROUP_ID);
     }
 
     /*
@@ -37,9 +51,10 @@ public class UserService {
         return instance;
     }
 
+
     private void setupProducer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26926");
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
         properties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
@@ -48,7 +63,7 @@ public class UserService {
 
     private void setupConsumer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26926");
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -63,8 +78,13 @@ public class UserService {
 
                 for (ConsumerRecord<String, byte[]> record : records) {
                     if (!USER_ID.equals(record.key())) {
-                        byte[] packet = record.value();
-                        EditorClient.receivePacket(packet);
+                        byte[] encryptedPacket = record.value();
+                        try {
+                            byte[] packet = AEADEncryption.decrypt(encryptedPacket, getInstance().ASSOCIATED_DATA, key);
+                            EditorClient.receivePacket(packet);
+                        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+                            throw new RuntimeException(e);
+                        }
                         //System.out.println("Packet received");
                     }
                 }
@@ -82,6 +102,13 @@ public class UserService {
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
             System.out.println("USER HAS JOINED THE SESSION");
+            try {
+                //Create a packet for the key
+                byte[] keyPacket = Packets.createKeyPacket(UserService.getInstance().USER_ID, numAgreed, AEADEncryption.keyToByteArray(key));
+                UserService.getInstance().broadcast(keyPacket);
+            } catch (IOException | GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -112,5 +139,15 @@ public class UserService {
                 consumer.close();
             }
         }
+    }
+
+    public int getNumAgreed(){
+        return numAgreed;
+    }
+
+    public void setKey(byte[] keyBytes) throws GeneralSecurityException, IOException {
+
+        key = AEADEncryption.byteArrayToKey(keyBytes);
+        System.out.println("set key to " + key);
     }
 }

@@ -8,7 +8,8 @@ public class Packets {
         INSERT,
         DELETE,
         REQUEST,
-        UPDATE
+        UPDATE,
+        KEY
     }
 
     private static final int INT_PARAMS_SIZE = Integer.BYTES * 2;
@@ -183,5 +184,24 @@ public class Packets {
         }
 
         return builder.toString();
+    }
+
+    public static byte[] createKeyPacket(String uID, int numAgreed, byte[] key){
+        ByteBuffer keyBuffer = ByteBuffer.allocate(OPERATION_SIZE + OPNUM_SIZE + key.length);
+        keyBuffer.putInt(Operation.KEY.ordinal());
+        keyBuffer.putInt(numAgreed);
+        keyBuffer.put(key);
+
+
+        return keyBuffer.array();
+    }
+    public static byte[] parseKey(byte[] packet){
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        packetBuffer.getInt();
+        packetBuffer.getInt();
+
+        byte[] keyBytes = new byte[packetBuffer.remaining()];
+        packetBuffer.get(keyBytes);
+        return keyBytes;
     }
 }
