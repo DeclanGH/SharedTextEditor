@@ -7,23 +7,20 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
-import java.security.GeneralSecurityException;
-import java.util.Arrays;
-import java.lang.Runtime;
 
 public class EditorClient extends JFrame {
 
     private static JTextArea textArea;
     private JFileChooser fileChooser;
 
-
     /*
      * 1.) externalUpdateFlag tells us whether a document update was done by us or some other user
      *     It helps the document listener ignore updates by other users
-     * 2.)
+     * 2 and 3) Number of times an operation was sent or received. This gets synced across members
      */
     private static boolean externalUpdateFlag = false;
-    //private static int operationNumber = 0;
+    private static int lastInsertOpNum = 1;
+    private static int lastDeleteOpNum = 1;
 
     // User ID from user service class
     private final static String USER_ID = UserService.getInstance().USER_ID;
@@ -52,16 +49,13 @@ public class EditorClient extends JFrame {
         // Exit the application
         exitItem.addActionListener(e -> System.exit(0));
 
-        // request the current text area when you join
-        //requestCurrentTextArea();
-
         // Make the text area
         textArea.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent event){
-                System.out.println(event.getDocument());
-                System.out.println(textArea.getDocument());
-                //Check to see if the event matches the text area, if it does, that means it was added through a keyboard
+
+                // Check to see if the event matches the text area, if it does,
+                // that means it was added through a keyboard
                 if (externalUpdateFlag == false) {
                     //System.out.println("Internal insert");
                     String insertedText;
@@ -70,49 +64,34 @@ public class EditorClient extends JFrame {
                         int length = event.getLength();
 
                         insertedText = event.getDocument().getText(offset, length);
-
-                        //operationNumber += 1;
                         lastInsertOpNum += 1;
+
                         // After doing the operation locally, get the packet to broadcast it out
                         byte[] insertPacket = Packets.createInsertPacket(offset, lastInsertOpNum, length, insertedText);
-                        System.out.println(Arrays.toString(insertPacket));
-                        System.out.println("text Inserted");
                         UserService.getInstance().broadcast(insertPacket);
 
                     } catch (Exception e) {
                         System.out.println("Error:" + e.getMessage());
                     }
                 }
-
-                System.out.println("Flag " + externalUpdateFlag);
-                // If it was set to true by receivePacket function, change back to false
-                //externalUpdateFlag = false;
             }
 
             @Override
             public void removeUpdate(DocumentEvent event){
 
-                System.out.println(event.getDocument());
-                System.out.println(textArea.getDocument());
                 if (externalUpdateFlag == false) {
 
                     int offset = event.getOffset();
                     int length = event.getLength();
 
-                    //operationNumber += 1;
                     lastDeleteOpNum += 1;
+
                     // Create the packet
                     byte[] deletePacket = Packets.createDeletePacket(offset, lastDeleteOpNum, length);
 
                     // Broadcast the packet to the other users in the channel
                     UserService.getInstance().broadcast(deletePacket);
-
-
-                    System.out.println("Offset " + offset + " Length " + length);
                 }
-
-                // If it was set to true by receivePacket function, change back to false
-                //externalUpdateFlag = false;
             }
 
             @Override
@@ -129,16 +108,16 @@ public class EditorClient extends JFrame {
         fileChooser = new JFileChooser();
 
         // This hook waits for runtime end and closes the producer and consumers associated with that user
-        //Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
+        // Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
     }
 
-    private void requestCurrentTextArea() {
+    private static void requestCurrentTextArea() {
         byte[] requestPacket = Packets.createTextAreaRequestPacket(USER_ID);
         UserService.getInstance().broadcast(requestPacket);
     }
 
     // Call the UserService method to close the resources
-    private void closeResources() throws GeneralSecurityException, IOException {
+    private void closeResources() {
         UserService.getInstance().close();
     }
 
@@ -170,15 +149,11 @@ public class EditorClient extends JFrame {
         }
     }
 
-    private static int lastInsertOpNum = 1;
-    private static int lastDeleteOpNum = 1;
     public static void receivePacket(byte[] packet){
 
-        // If we are receiving a packet, we are about to get an external update
-
-        System.out.println("OpNum " + lastInsertOpNum);
-        System.out.println("OpNum Passed In" + Packets.parseOperationNum(packet));
-        // to run the updates on the Event Dispatch Thread
+        // If we are receiving a packet, we are about to get an external update, so
+        // we use compare the operation number we just received to what we currently have.
+        // To run the updates on the Event Dispatch Thread, we use invokelater
         SwingUtilities.invokeLater(() -> {
             if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
                 int opNum = Packets.parseOperationNum(packet);
@@ -194,18 +169,13 @@ public class EditorClient extends JFrame {
                 }
             } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
                 String requesterID = Packets.parseID(packet);
-                //System.out.println("User ID " + USER_ID);
-                //System.out.println("Request ID " + requesterID);
                 // only send update if you are not the requester
-                if (!requesterID.equals(USER_ID)){
-                    //System.out.println("ID " + USER_ID);
-                    sendTextArea(requesterID);}
+                if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
             } else { // update packet
                 // only take the update if you are the requester
                 if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
             }
         });
-
     }
 
 
@@ -223,12 +193,13 @@ public class EditorClient extends JFrame {
     }
 
     private static void updateTextArea(byte[] packet) {
-        String currrentTextAreaText = textArea.getText();
+        String currentTextAreaText = textArea.getText();
         String receivedTextAreaText = Packets.parseTextArea(packet);
 
         // we do not want text areas repeatedly sent to us
-        if (textArea.getDocument() != null || currrentTextAreaText.equals(receivedTextAreaText))
+        if (currentTextAreaText.equals(receivedTextAreaText)){
             return;
+        }
 
         textArea.setText(receivedTextAreaText);
     }
@@ -243,8 +214,7 @@ public class EditorClient extends JFrame {
             textArea.getDocument().insertString(offset, characters, null);
             externalUpdateFlag = false;
         } catch (BadLocationException e) {
-            System.out.println(offset);
-            System.out.println(characters);
+            System.out.println("Bad location insert at offset " + offset + " for " + "\""+characters+"\"");
             e.printStackTrace();
         }
     }
@@ -259,14 +229,18 @@ public class EditorClient extends JFrame {
             textArea.getDocument().remove(offset,length);
             externalUpdateFlag = false;
         } catch (BadLocationException e) {
-            throw new RuntimeException(e);
+            System.out.println("Couldn't delete at offset " + offset + " for length " + length);
+            e.printStackTrace();
         }
     }
 
-    public static void main(String[] args) throws GeneralSecurityException, IOException {
+    public static void main(String[] args) {
         UserService.getInstance();
 
         //System.out.println("HERE");
         new EditorClient().setVisible(true);
+
+        // request the current text area when you join
+        requestCurrentTextArea();
     }
 }
