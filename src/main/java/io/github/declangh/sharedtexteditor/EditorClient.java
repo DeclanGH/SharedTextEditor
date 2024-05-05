@@ -159,6 +159,8 @@ public class EditorClient extends JFrame {
         // we use compare the operation number we just received to what we currently have.
         // To run the updates on the Event Dispatch Thread, we use invokelater
         System.out.println("Packet length " + packet.length);
+        //packet = Packets.extractPacket(packet);
+        //System.out.println("Packet type " + Packets.parseOperation(packet));
         //Check to see if the packet is encrypted
         if(Packets.isEncrypted(packet)) {
             //Get the packet without the flag
@@ -173,8 +175,8 @@ public class EditorClient extends JFrame {
         }else{
             //Get the packet w/o the flag
             packet = Packets.extractPacket(packet);
-            System.out.print("Packet is not encrypted");
-            System.out.println(packet.length);
+            System.out.println("Packet is not encrypted");
+            System.out.println("Packet " + Packets.parseOperation(packet));
             decryptedPacket = Arrays.copyOf(packet, packet.length);
         }
         Packets.Operation operation = Packets.parseOperation(decryptedPacket);

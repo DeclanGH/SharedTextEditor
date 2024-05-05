@@ -118,7 +118,8 @@ public class UserService {
 
         // Send message to the topic and register a callback
         // Send a message to each topic that is not the one your consumer is
-        if(Packets.parseOperation(packet) != Packets.Operation.KEY){
+        System.out.println("Packet operation " + Packets.parseOperation(packet));
+        if(Packets.parseOperation(packet) != Packets.Operation.KEY && Packets.parseOperation(packet) != Packets.Operation.REQUEST){
             try {
                 packet = AEADEncryption.encrypt(packet, getInstance().ASSOCIATED_DATA, key);
                 //add a one to the beginning of the packet
@@ -128,7 +129,7 @@ public class UserService {
                 throw new RuntimeException(e);
             }
         }else{
-            System.out.println("Sending unencrypted key");
+            System.out.println("Sending unencrypted packet");
             //add a zero to the beginning of the packet
             packet = Packets.addEncryptionByte(packet, false);
         }
