@@ -159,17 +159,22 @@ public class EditorClient extends JFrame {
         // we use compare the operation number we just received to what we currently have.
         // To run the updates on the Event Dispatch Thread, we use invokelater
         System.out.println("Packet length " + packet.length);
-        if(packet.length > 200) {
+        //Check to see if the packet is encrypted
+        if(Packets.isEncrypted(packet)) {
+            //Get the packet without the flag
+            packet = Packets.extractPacket(packet);
             //Decrypt packet
             try {
                 decryptedPacket = UserService.getInstance().decryptPacket(packet);
                 System.out.println("Decrypted packet");
-            } catch (GeneralSecurityException e) {
-                throw new RuntimeException(e);
-            } catch (UnsupportedEncodingException e) {
+            } catch (GeneralSecurityException | UnsupportedEncodingException e) {
                 throw new RuntimeException(e);
             }
         }else{
+            //Get the packet w/o the flag
+            packet = Packets.extractPacket(packet);
+            System.out.print("Packet is not encrypted");
+            System.out.println(packet.length);
             decryptedPacket = Arrays.copyOf(packet, packet.length);
         }
         Packets.Operation operation = Packets.parseOperation(decryptedPacket);

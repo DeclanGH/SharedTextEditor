@@ -90,6 +90,8 @@ public class Packets {
         ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
         int operationOrdinal = packetBuffer.getInt();
 
+        System.out.println(operationOrdinal);
+        System.out.println(Operation.KEY.ordinal());
         // return int at the first position of packet
         return Operation.values()[operationOrdinal];
     }
@@ -203,5 +205,29 @@ public class Packets {
         byte[] keyBytes = new byte[packetBuffer.remaining()];
         packetBuffer.get(keyBytes);
         return keyBytes;
+    }
+
+    public static byte[] addEncryptionByte(byte[] packet, boolean encrypt){
+        ByteBuffer buffer = ByteBuffer.allocate(packet.length + 1);
+        if(encrypt){
+            buffer.put((byte)1);
+        }else{
+            buffer.put((byte)0);
+        }
+        buffer.put(packet);
+        return buffer.array();
+    }
+
+    //Call this method after receiving a packet
+    public static boolean isEncrypted(byte[] packet){
+        ByteBuffer buffer = ByteBuffer.wrap(packet);
+        return buffer.get() == 1;
+    }
+
+    //Call this method after checking if the packet is encrypted
+    public static byte[] extractPacket(byte[] packet){
+        byte[] extractedPacket = new byte[packet.length - 1];
+        System.arraycopy(packet, 1, extractedPacket,0, extractedPacket.length);
+        return extractedPacket;
     }
 }

@@ -117,16 +117,22 @@ public class UserService {
     public void broadcast(byte[] packet) {
 
         // Send message to the topic and register a callback
-        List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
         // Send a message to each topic that is not the one your consumer is
         if(Packets.parseOperation(packet) != Packets.Operation.KEY){
             try {
                 packet = AEADEncryption.encrypt(packet, getInstance().ASSOCIATED_DATA, key);
-                //System.out.println("encrypting packet with " + key);
+                //add a one to the beginning of the packet
+                packet = Packets.addEncryptionByte(packet, true);
+                // System.out.println("encrypting packet with " + key);
             } catch (UnsupportedEncodingException | GeneralSecurityException e) {
                 throw new RuntimeException(e);
             }
+        }else{
+            System.out.println("Sending unencrypted key");
+            //add a zero to the beginning of the packet
+            packet = Packets.addEncryptionByte(packet, false);
         }
+        System.out.println("Sending packet of length " + packet.length);
         producer.send(new ProducerRecord<>(TOPIC, packet), (metadata, exception) -> {
             if (exception == null) {
                 System.out.println("Message sent successfully to topic: " + metadata.topic() +
