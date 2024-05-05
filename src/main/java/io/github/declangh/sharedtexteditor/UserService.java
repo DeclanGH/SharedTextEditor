@@ -75,16 +75,17 @@ public class UserService {
         new Thread(() -> {
             while (true) {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
-
                 for (ConsumerRecord<String, byte[]> record : records) {
                     if (!USER_ID.equals(record.key())) {
-                        byte[] encryptedPacket = record.value();
-                        try {
-                            byte[] packet = AEADEncryption.decrypt(encryptedPacket, getInstance().ASSOCIATED_DATA, key);
-                            EditorClient.receivePacket(packet);
-                        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                            throw new RuntimeException(e);
-                        }
+                        byte[] packet = record.value();
+                        EditorClient.receivePacket(packet);
+                        //byte[] encryptedPacket = record.value();
+//                        try {
+//                            byte[] packet = AEADEncryption.decrypt(encryptedPacket, getInstance().ASSOCIATED_DATA, key);
+//                            EditorClient.receivePacket(packet);
+//                        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
+//                            throw new RuntimeException(e);
+//                        }
                         //System.out.println("Packet received");
                     }
                 }
@@ -106,6 +107,7 @@ public class UserService {
                 //Create a packet for the key
                 byte[] keyPacket = Packets.createKeyPacket(UserService.getInstance().USER_ID, numAgreed, AEADEncryption.keyToByteArray(key));
                 UserService.getInstance().broadcast(keyPacket);
+                System.out.println("Sending key");
             } catch (IOException | GeneralSecurityException e) {
                 throw new RuntimeException(e);
             }
@@ -117,6 +119,14 @@ public class UserService {
         // Send message to the topic and register a callback
         List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
         // Send a message to each topic that is not the one your consumer is
+        if(Packets.parseOperation(packet) != Packets.Operation.KEY){
+            try {
+                packet = AEADEncryption.encrypt(packet, getInstance().ASSOCIATED_DATA, key);
+                //System.out.println("encrypting packet with " + key);
+            } catch (UnsupportedEncodingException | GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            }
+        }
         producer.send(new ProducerRecord<>(TOPIC, packet), (metadata, exception) -> {
             if (exception == null) {
                 System.out.println("Message sent successfully to topic: " + metadata.topic() +
@@ -141,13 +151,25 @@ public class UserService {
         }
     }
 
+    public byte[] decryptPacket(byte[] packet) throws GeneralSecurityException, UnsupportedEncodingException {
+        System.out.println("decrypting with " + key);
+        byte[] decryptedPacket = AEADEncryption.decrypt(packet, ASSOCIATED_DATA, key);
+
+        return decryptedPacket;
+    }
     public int getNumAgreed(){
         return numAgreed;
+    }
+
+    public void setNumAgreed(int numAgreed){
+        UserService.numAgreed = numAgreed;
     }
 
     public void setKey(byte[] keyBytes) throws GeneralSecurityException, IOException {
 
         key = AEADEncryption.byteArrayToKey(keyBytes);
+        numAgreed += 1;
         System.out.println("set key to " + key);
+        System.out.println("Num now agreed" + numAgreed);
     }
 }

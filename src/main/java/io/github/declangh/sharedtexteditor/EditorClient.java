@@ -10,6 +10,7 @@ import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.io.*;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 
 public class EditorClient extends JFrame {
 
@@ -153,34 +154,52 @@ public class EditorClient extends JFrame {
     }
 
     public static void receivePacket(byte[] packet){
-
+        byte[] decryptedPacket;
         // If we are receiving a packet, we are about to get an external update, so
         // we use compare the operation number we just received to what we currently have.
         // To run the updates on the Event Dispatch Thread, we use invokelater
+        System.out.println("Packet length " + packet.length);
+        if(packet.length > 200) {
+            //Decrypt packet
+            try {
+                decryptedPacket = UserService.getInstance().decryptPacket(packet);
+                System.out.println("Decrypted packet");
+            } catch (GeneralSecurityException e) {
+                throw new RuntimeException(e);
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
+            }
+        }else{
+            decryptedPacket = Arrays.copyOf(packet, packet.length);
+        }
+        Packets.Operation operation = Packets.parseOperation(decryptedPacket);
         SwingUtilities.invokeLater(() -> {
-            if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
-                int opNum = Packets.parseOperationNum(packet);
+            if (operation == Packets.Operation.INSERT) {
+                int opNum = Packets.parseOperationNum(decryptedPacket);
                 if(opNum > lastInsertOpNum) {
                     lastInsertOpNum = opNum;
-                    insertIntoEditor(packet);
+                    insertIntoEditor(decryptedPacket);
                 }
-            } else if (Packets.parseOperation(packet) == Packets.Operation.DELETE) {
-                int opNum = Packets.parseOperationNum(packet);
+            } else if (operation == Packets.Operation.DELETE) {
+                int opNum = Packets.parseOperationNum(decryptedPacket);
                 if(opNum > lastDeleteOpNum) {
                     lastDeleteOpNum = opNum;
-                    deleteFromEditor(packet);
+                    deleteFromEditor(decryptedPacket);
                 }
-            } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
-                String requesterID = Packets.parseID(packet);
+            } else if (operation == Packets.Operation.REQUEST) {
+                String requesterID = Packets.parseID(decryptedPacket);
                 // only send update if you are not the requester
                 if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
-            } else if (Packets.parseOperation(packet) == Packets.Operation.KEY) {
-                String uID = Packets.parseID(packet);
-                int numAgreed = Packets.parseOperationNum(packet);
+            } else if (operation == Packets.Operation.KEY) {
+                String uID = Packets.parseID(decryptedPacket);
+                int numAgreed = Packets.parseOperationNum(decryptedPacket);
+                //System.out.println("Gotten key" + Packets.parseKey(packet));
                 if(numAgreed > UserService.getInstance().getNumAgreed() || uID.compareTo(UserService.getInstance().USER_ID) > 0){
                     //Set the key equal to the one that is passed in
                     try {
-                        UserService.getInstance().setKey(Packets.parseKey(packet));
+                        UserService.getInstance().setKey(Packets.parseKey(decryptedPacket));
+                        UserService.getInstance().setNumAgreed(UserService.getInstance().getNumAgreed());
+                        System.out.println("num agreed now " + UserService.getInstance().getNumAgreed());
                     } catch (GeneralSecurityException | IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -188,7 +207,7 @@ public class EditorClient extends JFrame {
             }
             { // update packet
                 // only take the update if you are the requester
-                if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
+                if (Packets.parseID(decryptedPacket).equals(USER_ID)) updateTextArea(decryptedPacket);
             }
         });
     }
