@@ -29,7 +29,7 @@ public class EditorClient extends JFrame {
     private static final long PRIVATE_KEY = new Random().nextInt(Integer.MAX_VALUE) + 37;
 
     // This key is dynamic and depends on the number of people in the session
-    private static long sessionKey = 1;
+    private static long sessionKey = PRIVATE_KEY;
 
     private static long receivedKey = 1;
 
@@ -152,7 +152,8 @@ public class EditorClient extends JFrame {
 
     private static void requestCurrentTextArea() {
         byte[] requestPacket = Packets.createTextAreaRequestPacket(USER_ID);
-        UserService.getInstance().broadcast(requestPacket);
+        byte[] encryptedPacket = SimpleSecurity.encrypt(requestPacket, sessionKey);
+        UserService.getInstance().broadcast(encryptedPacket);
     }
 
     // Call the UserService method to close the resources
@@ -317,7 +318,6 @@ public class EditorClient extends JFrame {
 
         // after which you request a key exchange
         storedSessionKeys.add(sessionKey);
-        storedSessionKeys.add(PRIVATE_KEY);
         keyExchange();
 
         // and finally, request the current text area

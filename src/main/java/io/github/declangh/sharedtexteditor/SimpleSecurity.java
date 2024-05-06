@@ -15,6 +15,8 @@ public class SimpleSecurity {
 
     public static byte[] encrypt(byte[] byteArray, long key) {
 
+        System.out.println("Encrypting with: " + key);
+
         if (byteArray.length <= START_ITR) {
             System.out.println("First four bytes are assumed to be Operation Ordinal.");
             throw new IllegalArgumentException("Byte array must be at least 5 bytes long!");
@@ -28,6 +30,8 @@ public class SimpleSecurity {
     }
 
     public static byte[] decrypt(byte[] byteArray, long key) {
+
+        System.out.println("Decrypting with: " + key);
 
         if (byteArray.length <= START_ITR) {
             System.out.println("First four bytes are assumed to be Operation Ordinal.");
