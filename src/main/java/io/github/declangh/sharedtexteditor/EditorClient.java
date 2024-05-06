@@ -146,6 +146,7 @@ public class EditorClient extends JFrame {
 
         // our new session key would be the resulting value of the diffie-hellman equation
         sessionKey = diffieHellman.longValue();
+        storedSessionKeys.add(sessionKey);
         System.out.println("The current session key is: " + sessionKey);
     }
 
