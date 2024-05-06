@@ -9,6 +9,7 @@ public class Packets {
         DELETE,
         REQUEST,
         UPDATE,
+        KEY_EXCHANGE,
         KEY
     }
 
@@ -185,22 +186,27 @@ public class Packets {
 
         return builder.toString();
     }
-    public static byte[] createKeyPacket(String uID, int numAgreed, byte[] key){
-        ByteBuffer keyBuffer = ByteBuffer.allocate(OPERATION_SIZE + OPNUM_SIZE + key.length);
-        keyBuffer.putInt(Operation.KEY.ordinal());
-        keyBuffer.putInt(numAgreed);
-        keyBuffer.put(key);
 
+    public static byte[] createKeyExchangePacket(long key){
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Integer.BYTES);
+        packetBuffer.putInt(Operation.KEY_EXCHANGE.ordinal());
+        packetBuffer.putLong(key);
 
-        return keyBuffer.array();
+        return packetBuffer.array();
     }
-    public static byte[] parseKey(byte[] packet){
+
+    public static byte[] createKeyPacket(long key){
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Integer.BYTES);
+        packetBuffer.putInt(Operation.KEY.ordinal());
+        packetBuffer.putLong(key);
+
+        return packetBuffer.array();
+    }
+
+    public static long parseKey(byte[] packet){
         ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
         packetBuffer.getInt();
-        packetBuffer.getInt();
 
-        byte[] keyBytes = new byte[packetBuffer.remaining()];
-        packetBuffer.get(keyBytes);
-        return keyBytes;
+        return packetBuffer.getLong();
     }
 }
