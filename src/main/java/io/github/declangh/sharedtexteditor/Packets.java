@@ -188,7 +188,7 @@ public class Packets {
     }
 
     public static byte[] createKeyExchangePacket(long key){
-        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Integer.BYTES);
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Long.BYTES);
         packetBuffer.putInt(Operation.KEY_EXCHANGE.ordinal());
         packetBuffer.putLong(key);
 
@@ -196,7 +196,7 @@ public class Packets {
     }
 
     public static byte[] createKeyPacket(long key){
-        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Integer.BYTES);
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Long.BYTES);
         packetBuffer.putInt(Operation.KEY.ordinal());
         packetBuffer.putLong(key);
 
