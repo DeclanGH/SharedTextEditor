@@ -37,7 +37,7 @@ public class EditorClient extends JFrame {
     private static HashSet<Long> storedSessionKeys = new HashSet<>();
 
     // User ID from user service class
-    private final static String USER_ID = UserService.getInstance().USER_ID;
+    private final static long USER_ID = UserService.getInstance().USER_ID;
 
     public EditorClient() {
         setTitle("Shared Text Editor");
@@ -215,16 +215,16 @@ public class EditorClient extends JFrame {
                     }
                     break;
                 case REQUEST:
-                    String requesterID = Packets.parseID(packet);
+                    long requesterID = Packets.parseID(packet);
                     // only send update if you are not the requester
-                    if (!requesterID.equals(USER_ID)) {
+                    if (requesterID != USER_ID) {
                         sendTextArea(requesterID);
                     }
                     break;
                 case UPDATE:
                     decryptedPacket = SimpleSecurity.decrypt(packet, sessionKey);
                     // only take the update if you are the requester
-                    if (Packets.parseID(decryptedPacket).equals(USER_ID)) {
+                    if (Packets.parseID(decryptedPacket) == USER_ID) {
                         updateTextArea(decryptedPacket);
                     }
                     break;
@@ -249,7 +249,7 @@ public class EditorClient extends JFrame {
         });
     }
 
-    private static void sendTextArea(String requesterID) {
+    private static void sendTextArea(long requesterID) {
 
         String textAreaText = "";
         try {
@@ -318,6 +318,8 @@ public class EditorClient extends JFrame {
         // after which you request a key exchange
         storedSessionKeys.add(sessionKey);
         keyExchange();
+
+        System.out.println("id: " + USER_ID);
 
         // and finally, request the current text area
         requestCurrentTextArea();

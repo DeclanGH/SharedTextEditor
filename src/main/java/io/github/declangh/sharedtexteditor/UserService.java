@@ -15,7 +15,7 @@ public class UserService {
     private KafkaProducer<String, byte[]> producer;
     private KafkaConsumer<String, byte[]> consumer;
     private final String TOPIC = "SharedTextEditor1";
-    public final String USER_ID = UUID.randomUUID().toString();
+    public final long USER_ID = new Random().nextLong();
 
     private final String GROUP_ID = String.valueOf(new Random().nextInt(20) + 1);
 
@@ -54,7 +54,7 @@ public class UserService {
     private void setupConsumer() {
         Properties properties = new Properties();
         properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
-        properties.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, "1");
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
