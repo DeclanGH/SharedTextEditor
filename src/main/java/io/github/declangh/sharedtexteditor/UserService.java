@@ -1,5 +1,6 @@
 package io.github.declangh.sharedtexteditor;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
@@ -43,7 +44,7 @@ public class UserService {
 
     private void setupProducer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26926");
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
         properties.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
         properties.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
 
@@ -52,7 +53,7 @@ public class UserService {
 
     private void setupConsumer() {
         Properties properties = new Properties();
-        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26926");
+        properties.put("bootstrap.servers", "pi.cs.oswego.edu:26921");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         properties.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         properties.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -74,7 +75,7 @@ public class UserService {
     }
 
     private void setupEnvironment() {
-        Map<String, String> env = System.getenv();
+        Dotenv env = Dotenv.configure().load();
         long seed = Long.parseLong(env.get("SEED"));
         modValue = SimpleSecurity.generateRandomNumber(seed);
         publicKey = BigInteger.valueOf(Long.parseLong(env.get("PUBLIC_KEY")));
