@@ -7,6 +7,9 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
+import java.math.BigInteger;
+import java.util.HashSet;
+import java.util.Random;
 
 public class EditorClient extends JFrame {
 
@@ -21,6 +24,17 @@ public class EditorClient extends JFrame {
     private static boolean externalUpdateFlag = false;
     private static int lastInsertOpNum = 1;
     private static int lastDeleteOpNum = 1;
+
+    // generate a private key for yourself for this session. Starting at 37 (Just a random prime)
+    private static final long PRIVATE_KEY = new Random().nextInt(Integer.MAX_VALUE) + 37;
+
+    // This key is dynamic and depends on the number of people in the session
+    private static long sessionKey = 1;
+
+    private static long receivedKey = 1;
+
+    // Stored session keys helps us ignore them when they are sent to us
+    private static HashSet<Long> storedSessionKeys = new HashSet<>();
 
     // User ID from user service class
     private final static String USER_ID = UserService.getInstance().USER_ID;
@@ -68,7 +82,9 @@ public class EditorClient extends JFrame {
 
                         // After doing the operation locally, get the packet to broadcast it out
                         byte[] insertPacket = Packets.createInsertPacket(offset, lastInsertOpNum, length, insertedText);
-                        UserService.getInstance().broadcast(insertPacket);
+                        byte[] encryptedPacket = SimpleSecurity.encrypt(insertPacket, sessionKey);
+
+                        UserService.getInstance().broadcast(encryptedPacket);
 
                     } catch (Exception e) {
                         System.out.println("Error:" + e.getMessage());
@@ -88,9 +104,10 @@ public class EditorClient extends JFrame {
 
                     // Create the packet
                     byte[] deletePacket = Packets.createDeletePacket(offset, lastDeleteOpNum, length);
+                    byte[] encryptedPacket = SimpleSecurity.encrypt(deletePacket, sessionKey);
 
                     // Broadcast the packet to the other users in the channel
-                    UserService.getInstance().broadcast(deletePacket);
+                    UserService.getInstance().broadcast(encryptedPacket);
                 }
             }
 
@@ -109,6 +126,27 @@ public class EditorClient extends JFrame {
 
         // This hook waits for runtime end and closes the producer and consumers associated with that user
         // Runtime.getRuntime().addShutdownHook(new Thread(this::closeResources));
+    }
+
+    private static void keyExchange() {
+        byte[] exchangeKey = Packets.createKeyExchangePacket(PRIVATE_KEY);
+        UserService.getInstance().broadcast(exchangeKey);
+    }
+
+    private static void diffieHellman(long privateKey, long receivedKey) {
+        // get the public key and modValue
+        BigInteger sharedKey = UserService.getInstance().publicKey;
+        BigInteger moduloValue = BigInteger.valueOf(UserService.getInstance().modValue);
+
+        // for performance, we will constrain this value
+        long exponent = ((privateKey % 15) + 3) * ((receivedKey % 15) + 3);
+
+        // the diffie-hellman key exchange formula
+        BigInteger diffieHellman = sharedKey.modPow(BigInteger.valueOf(exponent), moduloValue);
+
+        // our new session key would be the resulting value of the diffie-hellman equation
+        sessionKey = diffieHellman.longValue();
+        System.out.println("The current session key is: " + sessionKey);
     }
 
     private static void requestCurrentTextArea() {
@@ -155,29 +193,60 @@ public class EditorClient extends JFrame {
         // we use compare the operation number we just received to what we currently have.
         // To run the updates on the Event Dispatch Thread, we use invokelater
         SwingUtilities.invokeLater(() -> {
-            if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
-                int opNum = Packets.parseOperationNum(packet);
-                if(opNum > lastInsertOpNum) {
-                    lastInsertOpNum = opNum;
-                    insertIntoEditor(packet);
-                }
-            } else if (Packets.parseOperation(packet) == Packets.Operation.DELETE) {
-                int opNum = Packets.parseOperationNum(packet);
-                if(opNum > lastDeleteOpNum) {
-                    lastDeleteOpNum = opNum;
-                    deleteFromEditor(packet);
-                }
-            } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
-                String requesterID = Packets.parseID(packet);
-                // only send update if you are not the requester
-                if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
-            } else { // update packet
-                // only take the update if you are the requester
-                if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
+            long parsedKey;
+            byte[] decryptedPacket = null;
+
+            switch (Packets.parseOperation(packet)) {
+                case INSERT:
+                    decryptedPacket = SimpleSecurity.decrypt(packet, sessionKey);
+                    int insertOpNum = Packets.parseOperationNum(decryptedPacket);
+                    if (insertOpNum > lastInsertOpNum) {
+                        lastInsertOpNum = insertOpNum;
+                        insertIntoEditor(decryptedPacket);
+                    }
+                    break;
+                case DELETE:
+                    decryptedPacket = SimpleSecurity.decrypt(packet, sessionKey);
+                    int deleteOpNum = Packets.parseOperationNum(decryptedPacket);
+                    if (deleteOpNum > lastDeleteOpNum) {
+                        lastDeleteOpNum = deleteOpNum;
+                        deleteFromEditor(decryptedPacket);
+                    }
+                    break;
+                case REQUEST:
+                    String requesterID = Packets.parseID(packet);
+                    // only send update if you are not the requester
+                    if (!requesterID.equals(USER_ID)) {
+                        sendTextArea(requesterID);
+                    }
+                    break;
+                case UPDATE:
+                    decryptedPacket = SimpleSecurity.decrypt(packet, sessionKey);
+                    // only take the update if you are the requester
+                    if (Packets.parseID(decryptedPacket).equals(USER_ID)) {
+                        updateTextArea(decryptedPacket);
+                    }
+                    break;
+                case KEY_EXCHANGE:
+                    parsedKey = Packets.parseKey(packet);
+                    if (!storedSessionKeys.contains(parsedKey)) {
+                        receivedKey = parsedKey;
+                        byte[] sessionKeyPacket = Packets.createKeyPacket(sessionKey);
+                        UserService.getInstance().broadcast(sessionKeyPacket);
+                        diffieHellman(sessionKey, receivedKey);
+                    }
+                    break;
+                case KEY:
+                    parsedKey = Packets.parseKey(packet);
+                    if (!storedSessionKeys.contains(parsedKey)) {
+                        receivedKey = parsedKey;
+                        storedSessionKeys.add(parsedKey);
+                        diffieHellman(PRIVATE_KEY, receivedKey);
+                    }
+                    break;
             }
         });
     }
-
 
     private static void sendTextArea(String requesterID) {
 
@@ -189,7 +258,9 @@ public class EditorClient extends JFrame {
         }
 
         byte[] updatePacket = Packets.createUpdatePacket(requesterID, textAreaText);
-        UserService.getInstance().broadcast(updatePacket);
+        byte[] encryptedPacket = SimpleSecurity.encrypt(updatePacket,sessionKey);
+
+        UserService.getInstance().broadcast(encryptedPacket);
     }
 
     private static void updateTextArea(byte[] packet) {
@@ -235,12 +306,20 @@ public class EditorClient extends JFrame {
     }
 
     public static void main(String[] args) {
+        // When the application is run,
+
+        // It creates an instance of the user service that you'll use all through this session
         UserService.getInstance();
 
-        //System.out.println("HERE");
+        // It then creates your text area
         new EditorClient().setVisible(true);
 
-        // request the current text area when you join
+        // after which you request a key exchange
+        storedSessionKeys.add(sessionKey);
+        storedSessionKeys.add(PRIVATE_KEY);
+        keyExchange();
+
+        // and finally, request the current text area
         requestCurrentTextArea();
     }
 }
