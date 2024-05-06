@@ -68,9 +68,10 @@ public class Packets {
 
     public static byte[] createUpdatePacket(String requesterID, String textArea) {
 
-        int charactersLength = requesterID.length() * 2;
+        int idLength = requesterID.length() * 2;
+        int textAreaLength = textArea.length() * 2;
 
-        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + charactersLength);
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + idLength + textAreaLength);
 
         // put the operation
         packetBuffer.putInt(Operation.UPDATE.ordinal());
