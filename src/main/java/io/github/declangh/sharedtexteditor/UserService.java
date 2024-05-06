@@ -1,11 +1,10 @@
 package io.github.declangh.sharedtexteditor;
 
-import com.google.crypto.tink.KeysetHandle;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.consumer.*;
-import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
+import java.math.BigInteger;
 import java.time.Duration;
 import java.util.*;
 
@@ -19,10 +18,15 @@ public class UserService {
 
     private final String GROUP_ID = String.valueOf(new Random().nextInt(20) + 1);
 
+    // These will change upon instantiating UserService
+    public long modValue = 1;
+    BigInteger publicKey = BigInteger.valueOf(1);
+
 
     private UserService(){
         setupProducer();
         setupConsumer();
+        setupEnvironment();
     }
 
     /*
@@ -62,14 +66,18 @@ public class UserService {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
 
                 for (ConsumerRecord<String, byte[]> record : records) {
-                    if (!USER_ID.equals(record.key())) {
-                        byte[] packet = record.value();
-                        EditorClient.receivePacket(packet);
-                        //System.out.println("Packet received");
-                    }
+                    byte[] packet = record.value();
+                    EditorClient.receivePacket(packet);
                 }
             }
         }).start();
+    }
+
+    private void setupEnvironment() {
+        Map<String, String> env = System.getenv();
+        long seed = Long.parseLong(env.get("SEED"));
+        modValue = SimpleSecurity.generateRandomNumber(seed);
+        publicKey = BigInteger.valueOf(Long.parseLong(env.get("PUBLIC_KEY")));
     }
 
     // This class is used to implement a listener for when users join the group
@@ -87,8 +95,6 @@ public class UserService {
 
     public void broadcast(byte[] packet) {
 
-        // Send message to the topic and register a callback
-        List<PartitionInfo> partitions = producer.partitionsFor(TOPIC);
         // Send a message to each topic that is not the one your consumer is
         producer.send(new ProducerRecord<>(TOPIC, packet), (metadata, exception) -> {
             if (exception == null) {
