@@ -8,7 +8,8 @@ public class Packets {
         INSERT,
         DELETE,
         REQUEST,
-        UPDATE
+        UPDATE,
+        KEY
     }
 
     private static final int INT_PARAMS_SIZE = Integer.BYTES * 2;
@@ -68,7 +69,7 @@ public class Packets {
 
         int charactersLength = requesterID.length() * 2;
 
-        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + charactersLength);
+        ByteBuffer packetBuffer = ByteBuffer.allocate(10000);
 
         // put the operation
         packetBuffer.putInt(Operation.UPDATE.ordinal());
@@ -183,5 +184,58 @@ public class Packets {
         }
 
         return builder.toString();
+    }
+
+    public static byte[] createKeyPacket(String uID, int numAgreed, byte[] key){
+        ByteBuffer keyBuffer = ByteBuffer.allocate(OPERATION_SIZE + OPNUM_SIZE + key.length);
+        keyBuffer.putInt(Operation.KEY.ordinal());
+        keyBuffer.putInt(numAgreed);
+        keyBuffer.put(key);
+
+
+        return keyBuffer.array();
+    }
+    public static byte[] parseKey(byte[] packet){
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        packetBuffer.getInt();
+        packetBuffer.getInt();
+
+        byte[] keyBytes = new byte[packetBuffer.remaining()];
+        packetBuffer.get(keyBytes);
+        return keyBytes;
+    }
+
+    public static byte[] addEncryptionByte(byte[] packet, boolean encrypt){
+        ByteBuffer buffer = ByteBuffer.allocate(packet.length + 1);
+        if(encrypt){
+            buffer.put((byte)1);
+        }else{
+            buffer.put((byte)0);
+        }
+        buffer.put(packet);
+        return buffer.array();
+    }
+
+    //Call this method after receiving a packet
+    public static boolean isEncrypted(byte[] packet){
+        ByteBuffer buffer = ByteBuffer.wrap(packet);
+        System.out.println("Byte " + buffer.get());
+        buffer.rewind();
+        return buffer.get() == 1;
+    }
+
+    //Call this method after checking if the packet is encrypted
+    public static byte[] extractPacket(byte[] packet){
+        byte[] extractedPacket = new byte[packet.length - 1];
+        //System.out.println("Byte " + packet[0]);
+        System.arraycopy(packet, 1, extractedPacket,0, extractedPacket.length);
+        return extractedPacket;
+    }
+
+    public static int parseOperationOrdinal(byte[] packet){
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        int operationOrdinal = packetBuffer.getInt();
+
+        return operationOrdinal;
     }
 }
