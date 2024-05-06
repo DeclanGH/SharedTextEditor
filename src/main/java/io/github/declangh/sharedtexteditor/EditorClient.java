@@ -1,7 +1,5 @@
 package io.github.declangh.sharedtexteditor;
 
-import org.apache.catalina.User;
-
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -9,8 +7,6 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
-import java.security.GeneralSecurityException;
-import java.util.Arrays;
 
 public class EditorClient extends JFrame {
 
@@ -154,67 +150,30 @@ public class EditorClient extends JFrame {
     }
 
     public static void receivePacket(byte[] packet){
-        byte[] decryptedPacket;
+
         // If we are receiving a packet, we are about to get an external update, so
         // we use compare the operation number we just received to what we currently have.
         // To run the updates on the Event Dispatch Thread, we use invokelater
-        System.out.println("Packet length " + packet.length);
-        //packet = Packets.extractPacket(packet);
-        //System.out.println("Packet type " + Packets.parseOperation(packet));
-        //Check to see if the packet is encrypted
-        if(Packets.isEncrypted(packet)) {
-            //Get the packet without the flag
-            packet = Packets.extractPacket(packet);
-            //Decrypt packet
-            try {
-                decryptedPacket = UserService.getInstance().decryptPacket(packet);
-                System.out.println("Decrypted packet");
-            } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
-        }else{
-            //Get the packet w/o the flag
-            packet = Packets.extractPacket(packet);
-            System.out.println("Packet is not encrypted");
-            System.out.println("Packet " + Packets.parseOperation(packet));
-            decryptedPacket = Arrays.copyOf(packet, packet.length);
-        }
-        Packets.Operation operation = Packets.parseOperation(decryptedPacket);
         SwingUtilities.invokeLater(() -> {
-            if (operation == Packets.Operation.INSERT) {
-                int opNum = Packets.parseOperationNum(decryptedPacket);
+            if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
+                int opNum = Packets.parseOperationNum(packet);
                 if(opNum > lastInsertOpNum) {
                     lastInsertOpNum = opNum;
-                    insertIntoEditor(decryptedPacket);
+                    insertIntoEditor(packet);
                 }
-            } else if (operation == Packets.Operation.DELETE) {
-                int opNum = Packets.parseOperationNum(decryptedPacket);
+            } else if (Packets.parseOperation(packet) == Packets.Operation.DELETE) {
+                int opNum = Packets.parseOperationNum(packet);
                 if(opNum > lastDeleteOpNum) {
                     lastDeleteOpNum = opNum;
-                    deleteFromEditor(decryptedPacket);
+                    deleteFromEditor(packet);
                 }
-            } else if (operation == Packets.Operation.REQUEST) {
-                String requesterID = Packets.parseID(decryptedPacket);
+            } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
+                String requesterID = Packets.parseID(packet);
                 // only send update if you are not the requester
                 if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
-            } else if (operation == Packets.Operation.KEY) {
-                String uID = Packets.parseID(decryptedPacket);
-                int numAgreed = Packets.parseOperationNum(decryptedPacket);
-                //System.out.println("Gotten key" + Packets.parseKey(packet));
-                if(numAgreed > UserService.getInstance().getNumAgreed() || uID.compareTo(UserService.getInstance().USER_ID) > 0){
-                    //Set the key equal to the one that is passed in
-                    try {
-                        UserService.getInstance().setKey(Packets.parseKey(decryptedPacket));
-                        UserService.getInstance().setNumAgreed(UserService.getInstance().getNumAgreed());
-                        System.out.println("num agreed now " + UserService.getInstance().getNumAgreed());
-                    } catch (GeneralSecurityException | IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-            { // update packet
+            } else { // update packet
                 // only take the update if you are the requester
-                if (Packets.parseID(decryptedPacket).equals(USER_ID)) updateTextArea(decryptedPacket);
+                if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
             }
         });
     }
