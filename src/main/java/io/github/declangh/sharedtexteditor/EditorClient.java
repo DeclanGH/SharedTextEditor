@@ -1,8 +1,5 @@
 package io.github.declangh.sharedtexteditor;
 
-import com.google.crypto.tink.KeysetHandle;
-import org.apache.catalina.User;
-
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -10,8 +7,6 @@ import javax.swing.text.BadLocationException;
 
 import java.awt.*;
 import java.io.*;
-import java.security.GeneralSecurityException;
-import java.util.Arrays;
 
 public class EditorClient extends JFrame {
 
@@ -24,7 +19,6 @@ public class EditorClient extends JFrame {
      * 2 and 3) Number of times an operation was sent or received. This gets synced across members
      */
     private static boolean externalUpdateFlag = false;
-    private static boolean receivedKey = false;
     private static int lastInsertOpNum = 1;
     private static int lastDeleteOpNum = 1;
 
@@ -122,17 +116,6 @@ public class EditorClient extends JFrame {
         UserService.getInstance().broadcast(requestPacket);
     }
 
-    private static void requestCurrentKey(){
-        byte[] keyBytes;
-        try {
-            keyBytes = AEADEncryption.keyToByteArray(UserService.getInstance().getKey());
-        } catch (IOException | GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
-        byte[] keyPacket = Packets.createKeyPacket(USER_ID, UserService.getInstance().getNumAgreed(), keyBytes);
-        UserService.getInstance().broadcast(keyPacket);
-    }
-
     // Call the UserService method to close the resources
     private void closeResources() {
         UserService.getInstance().close();
@@ -166,75 +149,36 @@ public class EditorClient extends JFrame {
         }
     }
 
-    public static void receivePacket(byte[] packet) throws GeneralSecurityException, IOException {
+    public static void receivePacket(byte[] packet){
+
         // If we are receiving a packet, we are about to get an external update, so
         // we use compare the operation number we just received to what we currently have.
         // To run the updates on the Event Dispatch Thread, we use invokelater
-        //System.out.println("Packet length " + packet.length);
-        //packet = Packets.extractPacket(packet);
-        //System.out.println("Packet type " + Packets.parseOperation(packet));
-        //Check to see if the packet is encrypted
-        if(Packets.parseOperationOrdinal(packet) == Packets.Operation.KEY.ordinal()){
-            //If the user has gotten the key before, return
-            if(receivedKey){
-                return;
-            }
-            System.out.println("Key Before " + UserService.getInstance().getKey());
-            //Parse the user id to make sure its not the same
-            String user_id = Packets.parseID(packet);
-            byte[] keyBytes = Packets.parseKey(packet);
-            //Only update the key if you are the person requesting it
-            if(user_id.equals(USER_ID)){
-                UserService.getInstance().setKey(keyBytes);
-
-            }
-            //If you are not the one requesting the key, send the key
-            else{
-                sendKey(user_id);
-            }
-            receivedKey = true;
-        }else{
-            //Decrypt the package
-            try {
-                packet = UserService.getInstance().decryptPacket(packet);
-            } catch (GeneralSecurityException | UnsupportedEncodingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        Packets.Operation operation = Packets.parseOperation(packet);
-        byte[] finalPacket = packet;
         SwingUtilities.invokeLater(() -> {
-            if (operation == Packets.Operation.INSERT) {
-                int opNum = Packets.parseOperationNum(finalPacket);
+            if (Packets.parseOperation(packet) == Packets.Operation.INSERT) {
+                int opNum = Packets.parseOperationNum(packet);
                 if(opNum > lastInsertOpNum) {
                     lastInsertOpNum = opNum;
-                    insertIntoEditor(finalPacket);
+                    insertIntoEditor(packet);
                 }
-            } else if (operation == Packets.Operation.DELETE) {
-                int opNum = Packets.parseOperationNum(finalPacket);
+            } else if (Packets.parseOperation(packet) == Packets.Operation.DELETE) {
+                int opNum = Packets.parseOperationNum(packet);
                 if(opNum > lastDeleteOpNum) {
                     lastDeleteOpNum = opNum;
-                    deleteFromEditor(finalPacket);
+                    deleteFromEditor(packet);
                 }
-            } else if (operation == Packets.Operation.REQUEST) {
-                String requesterID = Packets.parseID(finalPacket);
+            } else if (Packets.parseOperation(packet) == Packets.Operation.REQUEST) {
+                String requesterID = Packets.parseID(packet);
                 // only send update if you are not the requester
                 if (!requesterID.equals(USER_ID)) sendTextArea(requesterID);
             } else { // update packet
                 // only take the update if you are the requester
-                if (Packets.parseID(finalPacket).equals(USER_ID)) updateTextArea(finalPacket);
+                if (Packets.parseID(packet).equals(USER_ID)) updateTextArea(packet);
             }
         });
     }
 
 
-    private static void sendKey(String requesterId) throws GeneralSecurityException, IOException {
-        KeysetHandle key = UserService.getInstance().getKey();
-        byte[] keyBytes = AEADEncryption.keyToByteArray(key);
-        byte[] keyPacket = Packets.createKeyPacket(UserService.getInstance().USER_ID, UserService.getInstance().getNumAgreed(), keyBytes);
-        UserService.getInstance().broadcast(keyPacket);
-
-    }
     private static void sendTextArea(String requesterID) {
 
         String textAreaText = "";
@@ -296,8 +240,6 @@ public class EditorClient extends JFrame {
         //System.out.println("HERE");
         new EditorClient().setVisible(true);
 
-        //Request the current key when you join
-        requestCurrentKey();
         // request the current text area when you join
         requestCurrentTextArea();
     }
