@@ -152,8 +152,7 @@ public class EditorClient extends JFrame {
 
     private static void requestCurrentTextArea() {
         byte[] requestPacket = Packets.createTextAreaRequestPacket(USER_ID);
-        byte[] encryptedPacket = SimpleSecurity.encrypt(requestPacket, sessionKey);
-        UserService.getInstance().broadcast(encryptedPacket);
+        UserService.getInstance().broadcast(requestPacket);
     }
 
     // Call the UserService method to close the resources
