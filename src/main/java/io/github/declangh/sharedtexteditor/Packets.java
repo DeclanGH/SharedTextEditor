@@ -8,12 +8,15 @@ public class Packets {
         INSERT,
         DELETE,
         REQUEST,
-        UPDATE
+        UPDATE,
+        KEY_EXCHANGE,
+        KEY
     }
 
     private static final int INT_PARAMS_SIZE = Integer.BYTES * 2;
     private static final int OPERATION_SIZE  = Integer.BYTES;
     private static final int OPNUM_SIZE      = Integer.BYTES;
+    private static final int ID_LENGTH       = Long.BYTES;
 
     public static byte [] createInsertPacket(int offset, int opNum, int length, String characters) {
         if (characters == null) throw new NullPointerException("characters cannot be null");
@@ -47,36 +50,29 @@ public class Packets {
         return packetBuffer.array();
     }
 
-    public static byte[] createTextAreaRequestPacket(String requesterID) {
+    public static byte[] createTextAreaRequestPacket(long requesterID) {
 
-        int uidLength = requesterID.length() * 2;
-
-        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + uidLength);
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + ID_LENGTH);
 
         packetBuffer.putInt(Operation.REQUEST.ordinal());
 
         // put the ID length, necessary for parsing ID
-        packetBuffer.putInt(requesterID.length()/2);
-
-        // put the ID
-        for (char c : requesterID.toCharArray()) packetBuffer.putChar(c);
+        packetBuffer.putLong(requesterID);
 
         return packetBuffer.array();
     }
 
-    public static byte[] createUpdatePacket(String requesterID, String textArea) {
-        int charactersLength = requesterID.length() * 2;
+    public static byte[] createUpdatePacket(long requesterID, String textArea) {
 
-        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + 4 + charactersLength);
+        int textAreaLength = textArea.length() * 2;
+
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + ID_LENGTH + textAreaLength);
 
         // put the operation
         packetBuffer.putInt(Operation.UPDATE.ordinal());
 
-        // put the ID length, necessary for parsing ID
-        packetBuffer.putInt(requesterID.length()/2);
-
         // put the ID
-        for (char c : requesterID.toCharArray()) packetBuffer.putChar(c);
+        packetBuffer.putLong(requesterID);
 
         // put the textArea
         for (char c : textArea.toCharArray()) packetBuffer.putChar(c);
@@ -92,23 +88,12 @@ public class Packets {
         return Operation.values()[operationOrdinal];
     }
 
-    public static String parseID(byte[] packet) {
+    public static long parseID(byte[] packet) {
         ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
 
         packetBuffer.getInt();
 
-        int limit = packetBuffer.getInt();
-
-        StringBuilder builder = new StringBuilder();
-
-        for (int i = 0; i < limit; i++) {
-            if (packetBuffer.hasRemaining()) builder.append(packetBuffer.getChar());
-            else break;
-        }
-
-
-
-        return builder.toString();
+        return packetBuffer.getLong();
     }
 
     public static String parseTextArea(byte[] packet) {
@@ -117,20 +102,13 @@ public class Packets {
         // skip operation
         packetBuffer.getInt();
 
-        // skip length
-        int limit = packetBuffer.getInt();
-
         // skip id
-        for (int i = 0; i < limit; i++)
-            if (packetBuffer.hasRemaining()) packetBuffer.getChar();
-            else break;
+        packetBuffer.getLong();
 
         StringBuilder builder = new StringBuilder();
 
         // get text area
-        while (packetBuffer.hasRemaining()) {
-            builder.append(packetBuffer.getChar());
-        }
+        while (packetBuffer.hasRemaining()) builder.append(packetBuffer.getChar());
 
         return builder.toString();
     }
@@ -184,5 +162,28 @@ public class Packets {
         }
 
         return builder.toString();
+    }
+
+    public static byte[] createKeyExchangePacket(long key){
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Long.BYTES);
+        packetBuffer.putInt(Operation.KEY_EXCHANGE.ordinal());
+        packetBuffer.putLong(key);
+
+        return packetBuffer.array();
+    }
+
+    public static byte[] createKeyPacket(long key){
+        ByteBuffer packetBuffer = ByteBuffer.allocate(OPERATION_SIZE + Long.BYTES);
+        packetBuffer.putInt(Operation.KEY.ordinal());
+        packetBuffer.putLong(key);
+
+        return packetBuffer.array();
+    }
+
+    public static long parseKey(byte[] packet){
+        ByteBuffer packetBuffer = ByteBuffer.wrap(packet);
+        packetBuffer.getInt();
+
+        return packetBuffer.getLong();
     }
 }
