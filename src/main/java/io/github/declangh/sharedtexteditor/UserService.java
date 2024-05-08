@@ -15,7 +15,7 @@ public class UserService {
     private KafkaProducer<String, byte[]> producer;
     private KafkaConsumer<String, byte[]> consumer;
     private final String TOPIC = "SharedTextEditor1";
-    public final long USER_ID = new Random().nextLong();
+    public final long USER_ID = Math.abs(new Random().nextLong());
 
     private final String GROUP_ID = String.valueOf(new Random().nextInt(20) + 1);
 
